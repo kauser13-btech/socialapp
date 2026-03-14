@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "381634258241",
+    "project_id": "unomi-c8345",
+    "storage_bucket": "unomi-c8345.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:381634258241:android:0f361a444bc5fd73822dc0",
+        "android_client_info": {
+          "package_name": "unomi.drivingit"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkqlprUqNBSB5-fmJByTQ1UGZdOV5Ergs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
