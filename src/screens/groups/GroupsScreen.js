@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { Text, FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Loading, Card } from '../../components/ui';
 import { groupsAPI } from '../../lib/api';
-import { colors, spacing, fontSize, fontWeight } from '../../constants/styles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { spacing, fontSize, fontWeight } from '../../constants/styles';
 
 export default function GroupsScreen() {
+  const { colors } = useTheme();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadGroups();
-  }, []);
+  useEffect(() => { loadGroups(); }, []);
 
   const loadGroups = async () => {
     try {
@@ -27,13 +27,13 @@ export default function GroupsScreen() {
   if (loading) return <Loading fullScreen />;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={groups}
         renderItem={({ item }) => (
           <Card style={styles.card}>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text style={styles.description}>{item.description}</Text>
+            <Text style={[styles.name, { color: colors.textPrimary }]}>{item.name}</Text>
+            <Text style={[styles.description, { color: colors.textSecondary }]}>{item.description}</Text>
           </Card>
         )}
         keyExtractor={(item) => item.id.toString()}
@@ -44,9 +44,9 @@ export default function GroupsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   list: { padding: spacing.md },
   card: { marginBottom: spacing.md },
   name: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, marginBottom: spacing.xs },
-  description: { fontSize: fontSize.sm, color: colors.textSecondary },
+  description: { fontSize: fontSize.sm },
 });

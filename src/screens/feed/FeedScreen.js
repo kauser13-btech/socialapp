@@ -12,9 +12,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Loading } from '../../components/ui';
 import PreferenceCard from '../../components/preferences/PreferenceCard';
 import { feedAPI, preferencesAPI } from '../../lib/api';
-import { colors, spacing, fontSize, fontWeight } from '../../constants/styles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { spacing, fontSize, fontWeight } from '../../constants/styles';
 
 export default function FeedScreen({ navigation }) {
+  const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState('forYou');
   const [preferences, setPreferences] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -27,21 +29,12 @@ export default function FeedScreen({ navigation }) {
 
   const loadFeed = async ({ isRefresh = false } = {}) => {
     try {
-      if (initialLoading || isRefresh) {
-        // keep existing state visible, only show spinner inline or pull-to-refresh
-      } else {
-        setTabLoading(true);
-      }
+      if (!initialLoading && !isRefresh) setTabLoading(true);
       let response;
-      if (activeTab === 'forYou') {
-        response = await feedAPI.getFeed();
-      } else if (activeTab === 'myPreference') {
-        response = await preferencesAPI.list();
-      } else if (activeTab === 'trending') {
-        response = await feedAPI.getTrending();
-      } else {
-        response = await feedAPI.getDiscover();
-      }
+      if (activeTab === 'forYou') response = await feedAPI.getFeed();
+      else if (activeTab === 'myPreference') response = await preferencesAPI.list();
+      else if (activeTab === 'trending') response = await feedAPI.getTrending();
+      else response = await feedAPI.getDiscover();
 
       if (response.success) {
         setPreferences(response.data.preferences || response.data || []);
@@ -60,65 +53,42 @@ export default function FeedScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={styles.logo}>Unomi</Text>
-      <Button
-        onPress={() => navigation.navigate('PreferenceCreate')}
-        size="small"
-      >
-        + Create
-      </Button>
-    </View>
-  );
+  const tabs = [
+    { id: 'forYou', label: 'For You' },
+    { id: 'myPreference', label: 'My Preference' },
+    { id: 'trending', label: 'Trending' },
+    { id: 'discover', label: 'Discover' },
+  ];
 
-  const renderTabs = () => (
-    <View style={styles.tabsWrapper}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'forYou' && styles.activeTab]}
-          onPress={() => setActiveTab('forYou')}
-        >
-          <Text style={[styles.tabText, activeTab === 'forYou' && styles.activeTabText]}>
-            For You
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'myPreference' && styles.activeTab]}
-          onPress={() => setActiveTab('myPreference')}
-        >
-          <Text style={[styles.tabText, activeTab === 'myPreference' && styles.activeTabText]}>
-            My Preference
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'trending' && styles.activeTab]}
-          onPress={() => setActiveTab('trending')}
-        >
-          <Text style={[styles.tabText, activeTab === 'trending' && styles.activeTabText]}>
-            Trending
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'discover' && styles.activeTab]}
-          onPress={() => setActiveTab('discover')}
-        >
-          <Text style={[styles.tabText, activeTab === 'discover' && styles.activeTabText]}>
-            Discover
-          </Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </View>
-  );
-
-  if (initialLoading) {
-    return <Loading fullScreen />;
-  }
+  if (initialLoading) return <Loading fullScreen />;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {renderHeader()}
-      {renderTabs()}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      {/* Header */}
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.logo, { color: colors.primary }]}>Unomi</Text>
+        <Button onPress={() => navigation.navigate('PreferenceCreate')} size="small">
+          + Create
+        </Button>
+      </View>
+
+      {/* Tabs */}
+      <View style={[styles.tabsWrapper, { borderBottomColor: colors.border }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.id}
+              style={[styles.tab, activeTab === tab.id && [styles.activeTab, { borderBottomColor: colors.primary }]]}
+              onPress={() => setActiveTab(tab.id)}
+            >
+              <Text style={[styles.tabText, { color: activeTab === tab.id ? colors.primary : colors.textSecondary }, activeTab === tab.id && styles.activeTabText]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {tabLoading ? (
         <View style={styles.tabLoadingContainer}>
           <Loading />
@@ -134,12 +104,9 @@ export default function FeedScreen({ navigation }) {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No preferences found</Text>
-              <Text style={styles.emptySubtext}>Be the first to share your preferences!</Text>
-              <Button
-                onPress={() => navigation.navigate('PreferenceCreate')}
-                style={styles.emptyButton}
-              >
+              <Text style={[styles.emptyText, { color: colors.textPrimary }]}>No preferences found</Text>
+              <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Be the first to share your preferences!</Text>
+              <Button onPress={() => navigation.navigate('PreferenceCreate')} style={styles.emptyButton}>
                 Create Preference
               </Button>
             </View>
@@ -151,15 +118,8 @@ export default function FeedScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  tabLoadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1 },
+  tabLoadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -167,58 +127,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
-  logo: {
-    fontSize: fontSize.xxl,
-    fontWeight: fontWeight.bold,
-    color: colors.primary,
-  },
-  tabsWrapper: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  tabs: {
-    flexDirection: 'row',
-    paddingHorizontal: spacing.sm,
-  },
-  tab: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-    alignItems: 'center',
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: colors.primary,
-  },
-  tabText: {
-    fontSize: fontSize.md,
-    color: colors.textSecondary,
-  },
-  activeTabText: {
-    color: colors.primary,
-    fontWeight: fontWeight.semibold,
-  },
-  list: {
-    padding: spacing.md,
-  },
-  empty: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  emptyText: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  emptySubtext: {
-    fontSize: fontSize.md,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
-  },
-  emptyButton: {
-    marginTop: spacing.md,
-  },
+  logo: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold },
+  tabsWrapper: { borderBottomWidth: 1 },
+  tabs: { flexDirection: 'row', paddingHorizontal: spacing.sm },
+  tab: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, alignItems: 'center' },
+  activeTab: { borderBottomWidth: 2 },
+  tabText: { fontSize: fontSize.md },
+  activeTabText: { fontWeight: fontWeight.semibold },
+  list: { padding: spacing.md },
+  empty: { alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
+  emptyText: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, marginBottom: spacing.sm },
+  emptySubtext: { fontSize: fontSize.md, marginBottom: spacing.lg },
+  emptyButton: { marginTop: spacing.md },
 });

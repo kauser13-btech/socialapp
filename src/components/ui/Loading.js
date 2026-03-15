@@ -1,17 +1,19 @@
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { colors } from '../../constants/styles';
+import { useTheme } from '../../contexts/ThemeContext';
 
-const Loading = ({ fullScreen = false, color = colors.primary, size = 'large' }) => {
+const Loading = ({ fullScreen = false, size = 'large' }) => {
+  const { colors } = useTheme();
+
   if (fullScreen) {
     return (
-      <View style={styles.fullScreenContainer}>
-        <ActivityIndicator size={size} color={color} />
+      <View style={[styles.fullScreenContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size={size} color={colors.primary} />
       </View>
     );
   }
 
-  return <ActivityIndicator size={size} color={color} />;
+  return <ActivityIndicator size={size} color={colors.primary} />;
 };
 
 const styles = StyleSheet.create({
@@ -19,7 +21,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background,
   },
 });
 

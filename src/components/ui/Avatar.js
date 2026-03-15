@@ -1,33 +1,27 @@
 import React, { useState } from 'react';
 import { View, Image, Text, StyleSheet } from 'react-native';
-import { colors, borderRadius, fontSize, fontWeight } from '../../constants/styles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { fontSize, fontWeight } from '../../constants/styles';
 
 const Avatar = ({ user, size = 'medium', style, isOnline }) => {
+  const { colors } = useTheme();
   const [imageError, setImageError] = useState(false);
 
   const getSize = () => {
     switch (size) {
-      case 'small':
-        return 32;
-      case 'large':
-        return 64;
-      case 'xlarge':
-        return 96;
-      default:
-        return 48;
+      case 'small': return 32;
+      case 'large': return 64;
+      case 'xlarge': return 96;
+      default: return 48;
     }
   };
 
   const getFontSize = () => {
     switch (size) {
-      case 'small':
-        return fontSize.sm;
-      case 'large':
-        return fontSize.xl;
-      case 'xlarge':
-        return fontSize.xxxl;
-      default:
-        return fontSize.md;
+      case 'small': return fontSize.sm;
+      case 'large': return fontSize.xl;
+      case 'xlarge': return fontSize.xxxl;
+      default: return fontSize.md;
     }
   };
 
@@ -48,21 +42,16 @@ const Avatar = ({ user, size = 'medium', style, isOnline }) => {
     <Image
       source={{ uri: avatarUrl }}
       style={[
-        styles.image,
+        { backgroundColor: colors.gray200 },
         { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
       ]}
-      onError={(e) => {
-        console.log('Avatar load error:', avatarUrl, e.nativeEvent.error);
-        setImageError(true);
-      }}
-      onLoad={() => {
-        console.log('Avatar loaded successfully:', avatarUrl);
-      }}
+      onError={() => setImageError(true)}
     />
   ) : (
     <View
       style={[
         styles.placeholder,
+        { backgroundColor: colors.primary },
         { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
       ]}
     >
@@ -82,13 +71,8 @@ const Avatar = ({ user, size = 'medium', style, isOnline }) => {
       <View
         style={[
           styles.onlineDot,
-          {
-            width: dotSize,
-            height: dotSize,
-            borderRadius: dotSize / 2,
-            bottom: 0,
-            right: 0,
-          },
+          { backgroundColor: colors.success, borderColor: colors.background },
+          { width: dotSize, height: dotSize, borderRadius: dotSize / 2, bottom: 0, right: 0 },
         ]}
       />
     </View>
@@ -96,23 +80,17 @@ const Avatar = ({ user, size = 'medium', style, isOnline }) => {
 };
 
 const styles = StyleSheet.create({
-  image: {
-    backgroundColor: colors.gray200,
-  },
   placeholder: {
-    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   initials: {
-    color: colors.background,
+    color: '#ffffff',
     fontWeight: fontWeight.semibold,
   },
   onlineDot: {
     position: 'absolute',
-    backgroundColor: '#22C55E',
     borderWidth: 2,
-    borderColor: '#fff',
   },
 });
 

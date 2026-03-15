@@ -4,20 +4,15 @@ import { useNavigation } from '@react-navigation/native';
 import { Card, Avatar, Button } from '../ui';
 import ImageWithLoader from '../ui/ImageWithLoader';
 import { preferencesAPI } from '../../lib/api';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../constants/styles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { spacing, fontSize, fontWeight, borderRadius } from '../../constants/styles';
 
 export default function PreferenceCard({ preference, onUpdate }) {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const [isLiked, setIsLiked] = useState(preference.is_liked || false);
   const [isSaved, setIsSaved] = useState(preference.is_saved || false);
   const [likesCount, setLikesCount] = useState(preference.likes_count || 0);
-
-  // Debug: Log preference data
-  // console.log('PreferenceCard rendering with preference:', {
-  //   id: preference?.id,
-  //   title: preference?.title,
-  //   hasUser: !!preference?.user,
-  // });
 
   const handleLike = async () => {
     try {
@@ -50,11 +45,7 @@ export default function PreferenceCard({ preference, onUpdate }) {
   };
 
   const handlePress = () => {
-    if (!preference?.id) {
-      console.error('Cannot navigate to detail: preference ID is missing', preference);
-      return;
-    }
-    console.log('Navigating to preference detail with ID:', preference.id);
+    if (!preference?.id) return;
     navigation.navigate('PreferenceDetail', { id: preference.id });
   };
 
@@ -70,7 +61,6 @@ export default function PreferenceCard({ preference, onUpdate }) {
     return stars;
   };
 
-
   return (
     <Card style={styles.card} onPress={handlePress}>
       {/* User Header */}
@@ -81,12 +71,12 @@ export default function PreferenceCard({ preference, onUpdate }) {
         >
           <Avatar user={preference.user} size="medium" />
           <View style={styles.userDetails}>
-            <Text style={styles.userName}>{preference.user?.name}</Text>
-            <Text style={styles.username}>@{preference.user?.username}</Text>
+            <Text style={[styles.userName, { color: colors.textPrimary }]}>{preference.user?.name}</Text>
+            <Text style={[styles.username, { color: colors.textSecondary }]}>@{preference.user?.username}</Text>
           </View>
         </TouchableOpacity>
         {preference.category && (
-          <View style={styles.categoryBadge}>
+          <View style={[styles.categoryBadge, { backgroundColor: colors.primary }]}>
             <Text style={styles.categoryText} numberOfLines={1}>{preference.category.name}</Text>
           </View>
         )}
@@ -94,26 +84,23 @@ export default function PreferenceCard({ preference, onUpdate }) {
 
       {/* Content */}
       <View style={styles.content}>
-        <Text style={styles.title}>{preference.title}</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>{preference.title}</Text>
         {preference.description && (
-          <Text style={styles.description} numberOfLines={3}>
+          <Text style={[styles.description, { color: colors.textSecondary }]} numberOfLines={3}>
             {preference.description}
           </Text>
         )}
 
-        {/* Rating */}
         {preference.rating && (
           <View style={styles.ratingContainer}>
             <View style={styles.stars}>{renderStars(preference.rating)}</View>
           </View>
         )}
 
-        {/* Location */}
         {preference.location && (
-          <Text style={styles.location}>📍 {preference.location}</Text>
+          <Text style={[styles.location, { color: colors.textSecondary }]}>📍 {preference.location}</Text>
         )}
 
-        {/* Images */}
         {preference.images && preference.images.length > 0 && (
           <ScrollView horizontal style={styles.imagesContainer} showsHorizontalScrollIndicator={false}>
             {preference.images.map((image, index) => (
@@ -127,12 +114,11 @@ export default function PreferenceCard({ preference, onUpdate }) {
           </ScrollView>
         )}
 
-        {/* Tags */}
         {preference.tags && preference.tags.length > 0 && (
           <View style={styles.tagsContainer}>
             {preference.tags.map((tag, index) => (
-              <View key={index} style={styles.tag}>
-                <Text style={styles.tagText}>#{tag}</Text>
+              <View key={index} style={[styles.tag, { backgroundColor: colors.gray100 }]}>
+                <Text style={[styles.tagText, { color: colors.primary }]}>#{tag}</Text>
               </View>
             ))}
           </View>
@@ -140,29 +126,29 @@ export default function PreferenceCard({ preference, onUpdate }) {
       </View>
 
       {/* Actions */}
-      <View style={styles.actions}>
+      <View style={[styles.actions, { borderTopColor: colors.border }]}>
         <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
           <Text style={[styles.actionIcon, isLiked && styles.actionIconActive]}>
             {isLiked ? '❤️' : '🤍'}
           </Text>
-          <Text style={styles.actionText}>{likesCount}</Text>
+          <Text style={[styles.actionText, { color: colors.textSecondary }]}>{likesCount}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionButton} onPress={handlePress}>
           <Text style={styles.actionIcon}>💬</Text>
-          <Text style={styles.actionText}>{preference.comments_count || 0}</Text>
+          <Text style={[styles.actionText, { color: colors.textSecondary }]}>{preference.comments_count || 0}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionButton}>
           <Text style={styles.actionIcon}>🔗</Text>
-          <Text style={styles.actionText}>Share</Text>
+          <Text style={[styles.actionText, { color: colors.textSecondary }]}>Share</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.actionButton} onPress={handleSave}>
           <Text style={[styles.actionIcon, isSaved && styles.actionIconActive]}>
             {isSaved ? '🔖' : '📑'}
           </Text>
-          <Text style={styles.actionText}>Save</Text>
+          <Text style={[styles.actionText, { color: colors.textSecondary }]}>Save</Text>
         </TouchableOpacity>
       </View>
     </Card>
@@ -190,14 +176,11 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
   },
   username: {
     fontSize: fontSize.sm,
-    color: colors.textSecondary,
   },
   categoryBadge: {
-    backgroundColor: colors.primaryLight,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
@@ -206,7 +189,7 @@ const styles = StyleSheet.create({
   },
   categoryText: {
     fontSize: fontSize.sm,
-    color: colors.background,
+    color: '#ffffff',
     fontWeight: fontWeight.medium,
   },
   content: {
@@ -215,12 +198,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
     marginBottom: spacing.sm,
   },
   description: {
     fontSize: fontSize.md,
-    color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: spacing.sm,
   },
@@ -237,7 +218,6 @@ const styles = StyleSheet.create({
   },
   location: {
     fontSize: fontSize.sm,
-    color: colors.textSecondary,
     marginBottom: spacing.sm,
   },
   imagesContainer: {
@@ -255,7 +235,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   tag: {
-    backgroundColor: colors.gray100,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.full,
@@ -264,13 +243,11 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: fontSize.sm,
-    color: colors.primary,
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     borderTopWidth: 1,
-    borderTopColor: colors.border,
     paddingTop: spacing.md,
   },
   actionButton: {
@@ -286,6 +263,5 @@ const styles = StyleSheet.create({
   },
   actionText: {
     fontSize: fontSize.sm,
-    color: colors.textSecondary,
   },
 });

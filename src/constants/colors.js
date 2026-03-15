@@ -1,10 +1,10 @@
-// Color constants for the app
+// Static light-theme colors (used as defaults / for StyleSheet.create fallbacks)
+// For dynamic dark-mode aware colors, use useTheme() from ThemeContext
 export const colors = {
   primary: '#1877F2',
   primaryLight: '#3b94ff',
   primaryHover: '#0d5dbf',
 
-  // Gray scale
   gray50: '#f9fafb',
   gray100: '#f3f4f6',
   gray200: '#e5e7eb',
@@ -16,26 +16,32 @@ export const colors = {
   gray800: '#1f2937',
   gray900: '#111827',
 
-  // Status colors
   error: '#ef4444',
   success: '#10b981',
   warning: '#f59e0b',
   info: '#3b82f6',
 
-  // Background
   background: '#ffffff',
   backgroundDark: '#f3f4f6',
+  surface: '#ffffff',
 
-  // Text
   textPrimary: '#111827',
   textSecondary: '#6b7280',
   textTertiary: '#9ca3af',
 
-  // Border
   border: '#e5e7eb',
   borderDark: '#d1d5db',
 
-  // Card
   cardBackground: '#ffffff',
   cardShadow: 'rgba(0, 0, 0, 0.1)',
+
+  white: '#ffffff',
+  black: '#000000',
+
+  tabBar: '#ffffff',
+  tabBarBorder: '#e5e7eb',
+  header: '#ffffff',
+  headerText: '#111827',
+  inputBackground: '#ffffff',
+  offlineBg: '#f59e0b',
 };

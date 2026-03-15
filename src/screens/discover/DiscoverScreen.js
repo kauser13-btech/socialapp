@@ -1,35 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ScrollView,
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Input, Loading, Card } from '../../components/ui';
+import { Input, Loading } from '../../components/ui';
 import PreferenceCard from '../../components/preferences/PreferenceCard';
 import { searchAPI } from '../../lib/api';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../constants/styles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { spacing, fontSize, fontWeight, borderRadius } from '../../constants/styles';
 
 export default function DiscoverScreen({ navigation }) {
+  const { colors } = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [categories, setCategories] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadCategories();
-  }, []);
+  useEffect(() => { loadCategories(); }, []);
 
   const loadCategories = async () => {
     try {
       const response = await searchAPI.getCategories();
-      if (response.success) {
-        setCategories(response.data.categories || []);
-      }
+      if (response.success) setCategories(response.data.categories || []);
     } catch (error) {
       console.error('Error loading categories:', error);
     }
@@ -37,23 +28,14 @@ export default function DiscoverScreen({ navigation }) {
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
-
     setLoading(true);
     try {
       let response;
-      if (activeTab === 'all') {
-        response = await searchAPI.search(searchQuery);
-      } else if (activeTab === 'people') {
-        response = await searchAPI.searchUsers(searchQuery);
-      } else if (activeTab === 'preferences') {
-        response = await searchAPI.searchPreferences(searchQuery);
-      } else {
-        response = await searchAPI.searchPlaces(searchQuery);
-      }
-
-      if (response.success) {
-        setSearchResults(response.data || []);
-      }
+      if (activeTab === 'all') response = await searchAPI.search(searchQuery);
+      else if (activeTab === 'people') response = await searchAPI.searchUsers(searchQuery);
+      else if (activeTab === 'preferences') response = await searchAPI.searchPreferences(searchQuery);
+      else response = await searchAPI.searchPlaces(searchQuery);
+      if (response.success) setSearchResults(response.data || []);
     } catch (error) {
       console.error('Search error:', error);
     } finally {
@@ -61,29 +43,12 @@ export default function DiscoverScreen({ navigation }) {
     }
   };
 
-  const renderCategories = () => (
-    <View style={styles.categoriesContainer}>
-      <Text style={styles.sectionTitle}>Browse Categories</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category.id}
-            style={styles.categoryCard}
-            onPress={() => navigation.navigate('Category', { slug: category.slug })}
-          >
-            <Text style={styles.categoryIcon}>{category.icon || '📁'}</Text>
-            <Text style={styles.categoryName}>{category.name}</Text>
-            <Text style={styles.categoryCount}>{category.preferences_count || 0} preferences</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
+  const tabs = ['all', 'people', 'preferences', 'places'];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Discover</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Discover</Text>
       </View>
 
       <View style={styles.searchContainer}>
@@ -95,117 +60,71 @@ export default function DiscoverScreen({ navigation }) {
         />
       </View>
 
-      <View style={styles.tabs}>
-        {['all', 'people', 'preferences', 'places'].map((tab) => (
+      <View style={[styles.tabsRow, { borderBottomColor: colors.border }]}>
+        {tabs.map((tab) => (
           <TouchableOpacity
             key={tab}
-            style={[styles.tab, activeTab === tab && styles.activeTab]}
+            style={[styles.tab, activeTab === tab && [styles.activeTab, { borderBottomColor: colors.primary }]]}
             onPress={() => setActiveTab(tab)}
           >
-            <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>
+            <Text style={[styles.tabText, { color: activeTab === tab ? colors.primary : colors.textSecondary }, activeTab === tab && styles.activeTabText]}>
               {tab.charAt(0).toUpperCase() + tab.slice(1)}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {loading ? (
-        <Loading fullScreen />
-      ) : searchResults.length > 0 ? (
+      {loading && <Loading fullScreen />}
+      {!loading && searchResults.length > 0 && (
         <FlatList
           data={searchResults}
           renderItem={({ item }) => <PreferenceCard preference={item} />}
           keyExtractor={(item) => item.id.toString()}
           contentContainerStyle={styles.list}
         />
-      ) : (
+      )}
+      {!loading && searchResults.length === 0 && (
         <ScrollView style={styles.content}>
-          {renderCategories()}
+          <View style={styles.categoriesContainer}>
+            <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Browse Categories</Text>
+            <View style={styles.categoryGrid}>
+              {categories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[styles.categoryCard, { backgroundColor: colors.cardBackground, borderColor: colors.border }]}
+                  onPress={() => navigation.navigate('Category', { slug: category.slug })}
+                >
+                  <Text style={styles.categoryIcon}>{category.icon || '📁'}</Text>
+                  <Text style={[styles.categoryName, { color: colors.textPrimary }]} numberOfLines={2}>{category.name}</Text>
+                  <Text style={[styles.categoryCount, { color: colors.textSecondary }]}>{category.preferences_count || 0} preferences</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         </ScrollView>
       )}
     </SafeAreaView>
+
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  title: {
-    fontSize: fontSize.xxl,
-    fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
-  },
-  searchContainer: {
-    padding: spacing.md,
-  },
-  tabs: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: spacing.md,
-    alignItems: 'center',
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: colors.primary,
-  },
-  tabText: {
-    fontSize: fontSize.sm,
-    color: colors.textSecondary,
-  },
-  activeTabText: {
-    color: colors.primary,
-    fontWeight: fontWeight.semibold,
-  },
-  content: {
-    flex: 1,
-  },
-  list: {
-    padding: spacing.md,
-  },
-  categoriesContainer: {
-    padding: spacing.md,
-  },
-  sectionTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  categoryCard: {
-    backgroundColor: colors.cardBackground,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginRight: spacing.md,
-    alignItems: 'center',
-    width: 120,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  categoryIcon: {
-    fontSize: 32,
-    marginBottom: spacing.sm,
-  },
-  categoryName: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  categoryCount: {
-    fontSize: fontSize.xs,
-    color: colors.textSecondary,
-  },
+  container: { flex: 1 },
+  header: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1 },
+  title: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold },
+  searchContainer: { padding: spacing.md },
+  tabsRow: { flexDirection: 'row', borderBottomWidth: 1 },
+  tab: { flex: 1, paddingVertical: spacing.md, alignItems: 'center' },
+  activeTab: { borderBottomWidth: 2 },
+  tabText: { fontSize: fontSize.sm },
+  activeTabText: { fontWeight: fontWeight.semibold },
+  content: { flex: 1 },
+  list: { padding: spacing.md },
+  categoriesContainer: { padding: spacing.md },
+  sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.semibold, marginBottom: spacing.md },
+  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  categoryCard: { borderRadius: borderRadius.lg, padding: spacing.lg, alignItems: 'center', borderWidth: 1, width: '47%' },
+  categoryIcon: { fontSize: 36, marginBottom: spacing.sm },
+  categoryName: { fontSize: fontSize.md, fontWeight: fontWeight.medium, textAlign: 'center', marginBottom: spacing.xs },
+  categoryCount: { fontSize: fontSize.xs, textAlign: 'center' },
 });

@@ -11,7 +11,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input, Card } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
-import { colors, spacing, fontSize, fontWeight } from '../../constants/styles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { spacing, fontSize, fontWeight } from '../../constants/styles';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('sarah.chen@example.com');
@@ -19,15 +20,14 @@ export default function LoginScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const { login } = useAuth();
+  const { colors } = useTheme();
 
   const handleLogin = async () => {
     setErrors({});
     setLoading(true);
-
     try {
       await login({ email, password });
     } catch (error) {
-      console.error('Login error:', error);
       if (error.errors) {
         setErrors(error.errors);
       } else {
@@ -39,7 +39,7 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundDark }]}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -49,13 +49,13 @@ export default function LoginScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <Text style={styles.logo}>Unomi</Text>
-            <Text style={styles.tagline}>Discover & Share Preferences</Text>
+            <Text style={[styles.logo, { color: colors.primary }]}>Unomi</Text>
+            <Text style={[styles.tagline, { color: colors.textSecondary }]}>Discover & Share Preferences</Text>
           </View>
 
           <Card style={styles.formCard}>
-            <Text style={styles.title}>Welcome Back</Text>
-            <Text style={styles.subtitle}>Sign in to continue</Text>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>Welcome Back</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Sign in to continue</Text>
 
             <Input
               label="Email"
@@ -94,7 +94,7 @@ export default function LoginScreen({ navigation }) {
             </Button>
 
             <View style={styles.footer}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
+              <Text style={[styles.footerText, { color: colors.textSecondary }]}>Don't have an account? </Text>
               <Button
                 onPress={() => navigation.navigate('Register')}
                 variant="ghost"
@@ -111,13 +111,8 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.backgroundDark,
-  },
-  keyboardView: {
-    flex: 1,
-  },
+  container: { flex: 1 },
+  keyboardView: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -130,12 +125,10 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: fontSize.xxxl,
     fontWeight: fontWeight.bold,
-    color: colors.primary,
     marginBottom: spacing.sm,
   },
   tagline: {
     fontSize: fontSize.md,
-    color: colors.textSecondary,
   },
   formCard: {
     padding: spacing.xl,
@@ -143,12 +136,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: fontSize.xxl,
     fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   subtitle: {
     fontSize: fontSize.md,
-    color: colors.textSecondary,
     marginBottom: spacing.xl,
   },
   loginButton: {
@@ -162,6 +153,5 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: fontSize.sm,
-    color: colors.textSecondary,
   },
 });

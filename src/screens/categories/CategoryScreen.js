@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet } from 'react-native';
+import { FlatList, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Loading } from '../../components/ui';
 import PreferenceCard from '../../components/preferences/PreferenceCard';
 import { searchAPI } from '../../lib/api';
-import { colors, spacing, fontSize, fontWeight } from '../../constants/styles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { spacing } from '../../constants/styles';
 
 export default function CategoryScreen({ route }) {
   const { slug } = route.params;
+  const { colors } = useTheme();
   const [preferences, setPreferences] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadPreferences();
-  }, [slug]);
+  useEffect(() => { loadPreferences(); }, [slug]);
 
   const loadPreferences = async () => {
     try {
@@ -29,7 +29,7 @@ export default function CategoryScreen({ route }) {
   if (loading) return <Loading fullScreen />;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <FlatList
         data={preferences}
         renderItem={({ item }) => <PreferenceCard preference={item} />}
@@ -41,6 +41,6 @@ export default function CategoryScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1 },
   list: { padding: spacing.md },
 });

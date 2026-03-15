@@ -11,10 +11,12 @@ import {
 } from 'react-native';
 import { Avatar, Button } from '../ui';
 import { commentsAPI } from '../../lib/api';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../constants/styles';
+import { spacing, fontSize, fontWeight, borderRadius } from '../../constants/styles';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // Individual Comment Component
 function CommentItem({ comment, currentUserId, onUpdate, onDelete }) {
+  const { colors } = useTheme();
   const [isLiked, setIsLiked] = useState(comment.is_liked || false);
   const [likesCount, setLikesCount] = useState(comment.likes_count || 0);
   const [isEditing, setIsEditing] = useState(false);
@@ -94,34 +96,35 @@ function CommentItem({ comment, currentUserId, onUpdate, onDelete }) {
   };
 
   return (
-    <View style={styles.commentItem}>
+    <View style={[styles.commentItem, { borderBottomColor: colors.gray200 }]}>
       <Avatar user={comment.user} size="small" />
       <View style={styles.commentContent}>
         <View style={styles.commentHeader}>
-          <Text style={styles.commentUsername}>{comment.user?.name || 'Unknown'}</Text>
-          <Text style={styles.commentTime}>{formatTimeAgo(comment.created_at)}</Text>
+          <Text style={[styles.commentUsername, { color: colors.textPrimary }]}>{comment.user?.name || 'Unknown'}</Text>
+          <Text style={[styles.commentTime, { color: colors.textSecondary }]}>{formatTimeAgo(comment.created_at)}</Text>
         </View>
 
         {isEditing ? (
           <View style={styles.editContainer}>
             <TextInput
-              style={styles.editInput}
+              style={[styles.editInput, { borderColor: colors.border, color: colors.textPrimary, backgroundColor: colors.inputBackground }]}
               value={editText}
               onChangeText={setEditText}
               multiline
               autoFocus
+              placeholderTextColor={colors.textSecondary}
             />
             <View style={styles.editActions}>
               <TouchableOpacity onPress={() => setIsEditing(false)} style={styles.cancelButton}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleEdit}
-                style={styles.saveButton}
+                style={[styles.saveButton, { backgroundColor: colors.primary }]}
                 disabled={updating}
               >
                 {updating ? (
-                  <ActivityIndicator size="small" color={colors.white} />
+                  <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
                   <Text style={styles.saveButtonText}>Save</Text>
                 )}
@@ -130,11 +133,11 @@ function CommentItem({ comment, currentUserId, onUpdate, onDelete }) {
           </View>
         ) : (
           <>
-            <Text style={styles.commentText}>{comment.content}</Text>
+            <Text style={[styles.commentText, { color: colors.textPrimary }]}>{comment.content}</Text>
 
             <View style={styles.commentActions}>
               <TouchableOpacity onPress={handleLike} style={styles.actionButton}>
-                <Text style={styles.actionButtonText}>
+                <Text style={[styles.actionButtonText, { color: colors.textSecondary }]}>
                   {isLiked ? '❤️' : '🤍'} {likesCount > 0 && likesCount}
                 </Text>
               </TouchableOpacity>
@@ -145,10 +148,10 @@ function CommentItem({ comment, currentUserId, onUpdate, onDelete }) {
                     onPress={() => setIsEditing(true)}
                     style={styles.actionButton}
                   >
-                    <Text style={styles.actionButtonText}>Edit</Text>
+                    <Text style={[styles.actionButtonText, { color: colors.textSecondary }]}>Edit</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={handleDelete} style={styles.actionButton}>
-                    <Text style={[styles.actionButtonText, styles.deleteText]}>Delete</Text>
+                    <Text style={[styles.actionButtonText, { color: colors.error }]}>Delete</Text>
                   </TouchableOpacity>
                 </>
               )}
@@ -162,6 +165,7 @@ function CommentItem({ comment, currentUserId, onUpdate, onDelete }) {
 
 // Main Comment Section Component
 export default function CommentSection({ preferenceId, currentUser }) {
+  const { colors } = useTheme();
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
@@ -197,8 +201,8 @@ export default function CommentSection({ preferenceId, currentUser }) {
       const response = await commentsAPI.create(preferenceId, { content: newComment });
       if (response.success) {
         setNewComment('');
-        setShowInput(false); // Hide input after posting
-        loadComments(); // Reload comments to get the new one
+        setShowInput(false);
+        loadComments();
       }
     } catch (error) {
       console.error('Error posting comment:', error);
@@ -216,33 +220,33 @@ export default function CommentSection({ preferenceId, currentUser }) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="small" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading comments...</Text>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading comments...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerText}>Comments ({comments.length})</Text>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerText, { color: colors.textPrimary }]}>Comments ({comments.length})</Text>
       </View>
 
       {/* Add Comment Button or Input */}
       {!showInput ? (
         <TouchableOpacity
-          style={styles.addCommentButton}
+          style={[styles.addCommentButton, { borderBottomColor: colors.border, backgroundColor: colors.gray100 }]}
           onPress={() => setShowInput(true)}
         >
           <Avatar user={currentUser} size="small" />
-          <Text style={styles.addCommentText}>Add a comment...</Text>
+          <Text style={[styles.addCommentText, { color: colors.textSecondary }]}>Add a comment...</Text>
         </TouchableOpacity>
       ) : (
-        <View style={styles.inputContainer}>
+        <View style={[styles.inputContainer, { borderBottomColor: colors.border }]}>
           <Avatar user={currentUser} size="small" />
           <View style={styles.inputWrapper}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { borderColor: colors.border, color: colors.textPrimary, backgroundColor: colors.inputBackground }]}
               placeholder="Add a comment..."
               placeholderTextColor={colors.textSecondary}
               value={newComment}
@@ -259,18 +263,19 @@ export default function CommentSection({ preferenceId, currentUser }) {
                 }}
                 style={styles.cancelInputButton}
               >
-                <Text style={styles.cancelInputText}>Cancel</Text>
+                <Text style={[styles.cancelInputText, { color: colors.textSecondary }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleSubmit}
                 disabled={!newComment.trim() || submitting}
                 style={[
                   styles.postButton,
-                  (!newComment.trim() || submitting) && styles.postButtonDisabled,
+                  { backgroundColor: colors.primary },
+                  (!newComment.trim() || submitting) && { backgroundColor: colors.gray300 },
                 ]}
               >
                 {submitting ? (
-                  <ActivityIndicator size="small" color={colors.white} />
+                  <ActivityIndicator size="small" color="#ffffff" />
                 ) : (
                   <Text style={styles.postButtonText}>Post</Text>
                 )}
@@ -283,8 +288,8 @@ export default function CommentSection({ preferenceId, currentUser }) {
       {/* Comments List */}
       {comments.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No comments yet</Text>
-          <Text style={styles.emptySubtext}>Be the first to comment!</Text>
+          <Text style={[styles.emptyText, { color: colors.textPrimary }]}>No comments yet</Text>
+          <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>Be the first to comment!</Text>
         </View>
       ) : (
         <FlatList
@@ -307,7 +312,6 @@ export default function CommentSection({ preferenceId, currentUser }) {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.white,
     paddingVertical: spacing.md,
   },
   loadingContainer: {
@@ -319,18 +323,15 @@ const styles = StyleSheet.create({
   loadingText: {
     marginLeft: spacing.sm,
     fontSize: fontSize.sm,
-    color: colors.textSecondary,
   },
   header: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   headerText: {
     fontSize: fontSize.lg,
     fontWeight: fontWeight.bold,
-    color: colors.textPrimary,
   },
   addCommentButton: {
     flexDirection: 'row',
@@ -338,19 +339,15 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.gray50,
   },
   addCommentText: {
     fontSize: fontSize.md,
-    color: colors.textSecondary,
   },
   inputContainer: {
     flexDirection: 'row',
     padding: spacing.md,
     gap: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
     alignItems: 'flex-start',
   },
   inputWrapper: {
@@ -365,16 +362,13 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     fontSize: fontSize.md,
-    color: colors.textPrimary,
     maxHeight: 100,
   },
   postButton: {
-    backgroundColor: colors.primary,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
@@ -382,11 +376,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  postButtonDisabled: {
-    backgroundColor: colors.gray300,
-  },
   postButtonText: {
-    color: colors.white,
+    color: '#ffffff',
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
   },
@@ -396,7 +387,6 @@ const styles = StyleSheet.create({
   },
   cancelInputText: {
     fontSize: fontSize.md,
-    color: colors.textSecondary,
     fontWeight: fontWeight.medium,
   },
   commentItem: {
@@ -404,7 +394,6 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.gray100,
   },
   commentContent: {
     flex: 1,
@@ -418,15 +407,12 @@ const styles = StyleSheet.create({
   commentUsername: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
   },
   commentTime: {
     fontSize: fontSize.xs,
-    color: colors.textSecondary,
   },
   commentText: {
     fontSize: fontSize.md,
-    color: colors.textPrimary,
     lineHeight: 20,
     marginBottom: spacing.sm,
   },
@@ -439,22 +425,16 @@ const styles = StyleSheet.create({
   },
   actionButtonText: {
     fontSize: fontSize.sm,
-    color: colors.textSecondary,
     fontWeight: fontWeight.medium,
-  },
-  deleteText: {
-    color: colors.error,
   },
   editContainer: {
     marginTop: spacing.xs,
   },
   editInput: {
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: borderRadius.md,
     padding: spacing.sm,
     fontSize: fontSize.md,
-    color: colors.textPrimary,
     minHeight: 60,
     textAlignVertical: 'top',
   },
@@ -470,11 +450,9 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: fontSize.sm,
-    color: colors.textSecondary,
     fontWeight: fontWeight.medium,
   },
   saveButton: {
-    backgroundColor: colors.primary,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.sm,
@@ -483,7 +461,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: fontSize.sm,
-    color: colors.white,
+    color: '#ffffff',
     fontWeight: fontWeight.semibold,
   },
   emptyContainer: {
@@ -493,11 +471,9 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
-    color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   emptySubtext: {
     fontSize: fontSize.sm,
-    color: colors.textSecondary,
   },
 });

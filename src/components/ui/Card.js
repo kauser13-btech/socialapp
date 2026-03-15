@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors, spacing, borderRadius, shadows } from '../../constants/styles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { spacing, borderRadius, shadows } from '../../constants/styles';
 
 const Card = ({
   children,
@@ -10,10 +11,12 @@ const Card = ({
   shadow = 'md',
   ...props
 }) => {
+  const { colors } = useTheme();
   const Container = onPress ? TouchableOpacity : View;
 
   const cardStyle = [
-    styles.card,
+    styles.base,
+    { backgroundColor: colors.cardBackground, borderColor: colors.border },
     !noPadding && styles.padding,
     shadow === 'sm' && shadows.sm,
     shadow === 'md' && shadows.md,
@@ -34,11 +37,9 @@ const Card = ({
 };
 
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.cardBackground,
+  base: {
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
   },
   padding: {
     padding: spacing.md,

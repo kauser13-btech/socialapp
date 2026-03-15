@@ -5,7 +5,8 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { colors, spacing, borderRadius, fontSize, fontWeight } from '../../constants/styles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { spacing, borderRadius, fontSize, fontWeight } from '../../constants/styles';
 
 const Button = ({
   children,
@@ -18,42 +19,41 @@ const Button = ({
   textStyle,
   ...props
 }) => {
+  const { colors } = useTheme();
+
   const getButtonStyle = () => {
-    const styles = [buttonStyles.base];
+    const s = [buttonStyles.base];
 
-    // Size
-    if (size === 'small') styles.push(buttonStyles.small);
-    else if (size === 'large') styles.push(buttonStyles.large);
-    else styles.push(buttonStyles.medium);
+    if (size === 'small') s.push(buttonStyles.small);
+    else if (size === 'large') s.push(buttonStyles.large);
+    else s.push(buttonStyles.medium);
 
-    // Variant
-    if (variant === 'primary') styles.push(buttonStyles.primary);
-    else if (variant === 'secondary') styles.push(buttonStyles.secondary);
-    else if (variant === 'outline') styles.push(buttonStyles.outline);
-    else if (variant === 'ghost') styles.push(buttonStyles.ghost);
-    else if (variant === 'danger') styles.push(buttonStyles.danger);
+    if (variant === 'primary') s.push({ backgroundColor: colors.primary });
+    else if (variant === 'secondary') s.push({ backgroundColor: colors.gray200 });
+    else if (variant === 'outline') s.push({ backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary });
+    else if (variant === 'ghost') s.push({ backgroundColor: 'transparent' });
+    else if (variant === 'danger') s.push({ backgroundColor: colors.error });
 
-    // State
-    if (disabled) styles.push(buttonStyles.disabled);
+    if (disabled) s.push(buttonStyles.disabled);
 
-    return styles;
+    return s;
   };
 
   const getTextStyle = () => {
-    const styles = [buttonStyles.text];
+    const s = [buttonStyles.text];
 
-    if (size === 'small') styles.push(buttonStyles.textSmall);
-    else if (size === 'large') styles.push(buttonStyles.textLarge);
+    if (size === 'small') s.push(buttonStyles.textSmall);
+    else if (size === 'large') s.push(buttonStyles.textLarge);
 
-    if (variant === 'primary') styles.push(buttonStyles.textPrimary);
-    else if (variant === 'secondary') styles.push(buttonStyles.textSecondary);
-    else if (variant === 'outline') styles.push(buttonStyles.textOutline);
-    else if (variant === 'ghost') styles.push(buttonStyles.textGhost);
-    else if (variant === 'danger') styles.push(buttonStyles.textDanger);
+    if (variant === 'primary') s.push({ color: '#ffffff' });
+    else if (variant === 'secondary') s.push({ color: colors.textPrimary });
+    else if (variant === 'outline') s.push({ color: colors.primary });
+    else if (variant === 'ghost') s.push({ color: colors.primary });
+    else if (variant === 'danger') s.push({ color: '#ffffff' });
 
-    if (disabled) styles.push(buttonStyles.textDisabled);
+    if (disabled) s.push({ color: colors.gray500 });
 
-    return styles;
+    return s;
   };
 
   return (
@@ -69,7 +69,7 @@ const Button = ({
           color={
             variant === 'outline' || variant === 'ghost'
               ? colors.primary
-              : colors.background
+              : '#ffffff'
           }
         />
       ) : (
@@ -86,8 +86,6 @@ const buttonStyles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
   },
-
-  // Sizes
   small: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
@@ -100,32 +98,9 @@ const buttonStyles = StyleSheet.create({
     paddingVertical: spacing.lg,
     paddingHorizontal: spacing.xl,
   },
-
-  // Variants
-  primary: {
-    backgroundColor: colors.primary,
-  },
-  secondary: {
-    backgroundColor: colors.gray200,
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  danger: {
-    backgroundColor: colors.error,
-  },
-
-  // States
   disabled: {
     opacity: 0.5,
   },
-
-  // Text
   text: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
@@ -135,24 +110,6 @@ const buttonStyles = StyleSheet.create({
   },
   textLarge: {
     fontSize: fontSize.lg,
-  },
-  textPrimary: {
-    color: colors.background,
-  },
-  textSecondary: {
-    color: colors.textPrimary,
-  },
-  textOutline: {
-    color: colors.primary,
-  },
-  textGhost: {
-    color: colors.primary,
-  },
-  textDanger: {
-    color: colors.background,
-  },
-  textDisabled: {
-    color: colors.gray500,
   },
 });
 

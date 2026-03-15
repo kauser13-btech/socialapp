@@ -5,7 +5,8 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
-import { colors, spacing, borderRadius, fontSize } from '../../constants/styles';
+import { useTheme } from '../../contexts/ThemeContext';
+import { spacing, borderRadius, fontSize } from '../../constants/styles';
 
 const Input = ({
   label,
@@ -19,15 +20,21 @@ const Input = ({
   multiline = false,
   numberOfLines = 1,
   style,
+  inputStyle,
   ...props
 }) => {
+  const { colors } = useTheme();
+
   return (
     <View style={[styles.container, style]}>
-      {label && <Text style={styles.label}>{label}</Text>}
-      <View style={[styles.inputContainer, error && styles.inputError]}>
+      {label && <Text style={[styles.label, { color: colors.textPrimary }]}>{label}</Text>}
+      <View style={[
+        styles.inputContainer,
+        { borderColor: error ? colors.error : colors.border, backgroundColor: colors.inputBackground },
+      ]}>
         {icon && <View style={styles.icon}>{icon}</View>}
         <TextInput
-          style={[styles.input, icon && styles.inputWithIcon, multiline && styles.multiline]}
+          style={[styles.input, icon && styles.inputWithIcon, multiline && styles.multiline, { color: colors.textPrimary }, inputStyle]}
           placeholder={placeholder}
           placeholderTextColor={colors.gray400}
           value={value}
@@ -39,7 +46,7 @@ const Input = ({
           {...props}
         />
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>}
     </View>
   );
 };
@@ -51,19 +58,13 @@ const styles = StyleSheet.create({
   label: {
     fontSize: fontSize.sm,
     fontWeight: '500',
-    color: colors.textPrimary,
     marginBottom: spacing.xs,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: borderRadius.md,
-    backgroundColor: colors.background,
-  },
-  inputError: {
-    borderColor: colors.error,
   },
   icon: {
     paddingLeft: spacing.md,
@@ -71,7 +72,6 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: fontSize.md,
-    color: colors.textPrimary,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
   },
@@ -84,7 +84,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: fontSize.xs,
-    color: colors.error,
     marginTop: spacing.xs,
   },
 });
