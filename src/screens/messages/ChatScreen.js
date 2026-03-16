@@ -1,15 +1,23 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { View, Text, StyleSheet, FlatList, KeyboardAvoidingView, Alert, TouchableOpacity } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  KeyboardAvoidingView, 
+  Alert, 
+  TouchableOpacity,
+  Platform
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { Input, Loading } from '../../components/ui';
+import { Input, Loading, Avatar } from '../../components/ui';
 import { messagesAPI } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 import { useCall } from '../../contexts/CallContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { spacing, fontSize, borderRadius } from '../../constants/styles';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function ChatScreen({ route, navigation }) {
@@ -18,7 +26,8 @@ export default function ChatScreen({ route, navigation }) {
   const { user: currentUser } = useAuth();
   const { socket, isConnected, sendMessage: socketSendMessage, playNotificationSound } = useSocket();
   const { initiateCall, callState } = useCall();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
+  
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -55,19 +64,37 @@ export default function ChatScreen({ route, navigation }) {
       : chatUser?.username || 'Chat';
 
     navigation.setOptions({
-      title: userName,
+      headerTitle: () => (
+        <View style={styles.headerTitleContainer}>
+          <Avatar 
+            user={{ avatar_url: chatUser?.avatar_url, name: userName }} 
+            size="small" 
+          />
+          <View style={styles.headerTextWrap}>
+            <Text style={[styles.headerName, { color: colors.textPrimary }]} numberOfLines={1}>
+              {userName}
+            </Text>
+            {isTyping && (
+              <Text style={[styles.headerStatus, { color: colors.primary }]}>typing...</Text>
+            )}
+          </View>
+        </View>
+      ),
+      headerTitleAlign: 'left',
       headerRight: () => (
         <View style={styles.headerButtons}>
           <TouchableOpacity onPress={handleAudioCall} style={styles.headerButton} disabled={callState !== 'idle'}>
-            <Icon name="call" size={22} color={callState !== 'idle' ? colors.gray400 : colors.primary} />
+            <Icon name="call" size={20} color={callState !== 'idle' ? colors.gray400 : colors.primary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleVideoCall} style={styles.headerButton} disabled={callState !== 'idle'}>
-            <Icon name="videocam" size={24} color={callState !== 'idle' ? colors.gray400 : colors.primary} />
+            <Icon name="videocam" size={22} color={callState !== 'idle' ? colors.gray400 : colors.primary} />
           </TouchableOpacity>
         </View>
       ),
+      headerShadowVisible: false,
+      headerStyle: { backgroundColor: colors.background },
     });
-  }, [navigation, chatUser, callState, colors]);
+  }, [navigation, chatUser, callState, colors, isTyping]);
 
   useEffect(() => {
     loadMessages();
@@ -136,14 +163,38 @@ export default function ChatScreen({ route, navigation }) {
     }
   };
 
-  const renderMessage = ({ item }) => {
+  const renderMessage = ({ item, index }) => {
     const isMe = item.sender_id === currentUser?.id;
+    const nextMessage = messages[index - 1]; // Because list is inverted
+    const isLastInGroup = !nextMessage || nextMessage.sender_id !== item.sender_id;
+
     return (
-      <View style={[styles.message, isMe ? [styles.myMessage, { backgroundColor: colors.primary }] : [styles.theirMessage, { backgroundColor: colors.gray200 }]]}>
-        <Text style={[styles.messageContent, { color: isMe ? '#ffffff' : colors.textPrimary }]}>{item.content}</Text>
-        <Text style={[styles.messageTime, { color: isMe ? 'rgba(255,255,255,0.7)' : colors.textSecondary }]}>
-          {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
-        </Text>
+      <View style={[
+        styles.messageOuter, 
+        isMe ? styles.messageOuterMe : styles.messageOuterThem,
+        isLastInGroup && styles.messageOuterLast
+      ]}>
+        <View style={[
+          styles.messageBubble, 
+          isMe ? [styles.myMessage, { backgroundColor: colors.primary }] : [styles.theirMessage, { backgroundColor: isDark ? colors.cardBackground : '#f3f4f6' }],
+          isLastInGroup && (isMe ? styles.myMessageLast : styles.theirMessageLast)
+        ]}>
+          <Text style={[
+            styles.messageContent, 
+            { color: isMe ? '#ffffff' : colors.textPrimary }
+          ]}>
+            {item.content}
+          </Text>
+        </View>
+        {isLastInGroup && (
+          <Text style={[
+            styles.messageTime, 
+            isMe ? styles.messageTimeMe : styles.messageTimeThem,
+            { color: colors.textTertiary }
+          ]}>
+            {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+          </Text>
+        )}
       </View>
     );
   };
@@ -151,11 +202,13 @@ export default function ChatScreen({ route, navigation }) {
   const renderTypingIndicator = () => {
     if (!isTyping) return null;
     return (
-      <View style={[styles.message, styles.theirMessage, styles.typingIndicator, { backgroundColor: colors.gray200 }]}>
-        <View style={styles.typingDots}>
-          <View style={[styles.dot, styles.dot1, { backgroundColor: colors.textSecondary }]} />
-          <View style={[styles.dot, styles.dot2, { backgroundColor: colors.textSecondary }]} />
-          <View style={[styles.dot, styles.dot3, { backgroundColor: colors.textSecondary }]} />
+      <View style={[styles.messageOuter, styles.messageOuterThem, styles.messageOuterLast]}>
+        <View style={[styles.messageBubble, styles.theirMessage, styles.theirMessageLast, styles.typingBubble, { backgroundColor: isDark ? colors.cardBackground : '#f3f4f6' }]}>
+          <View style={styles.typingDots}>
+            <View style={[styles.dot, { backgroundColor: colors.textTertiary }]} />
+            <View style={[styles.dot, styles.dot2, { backgroundColor: colors.textTertiary }]} />
+            <View style={[styles.dot, styles.dot3, { backgroundColor: colors.textTertiary }]} />
+          </View>
         </View>
       </View>
     );
@@ -165,7 +218,11 @@ export default function ChatScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
-      <KeyboardAvoidingView behavior="padding" style={styles.keyboardView} keyboardVerticalOffset={headerHeight}>
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={styles.keyboardView} 
+        keyboardVerticalOffset={headerHeight}
+      >
         <FlatList
           ref={flatListRef}
           data={[...messages].reverse()}
@@ -176,13 +233,15 @@ export default function ChatScreen({ route, navigation }) {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           ListHeaderComponent={renderTypingIndicator}
+          showsVerticalScrollIndicator={false}
           onContentSizeChange={() => {
             if (messages.length > 0) flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
           }}
         />
 
         {sendError ? (
-          <View style={[styles.errorContainer, { backgroundColor: colors.error + '15', borderColor: colors.error + '30' }]}>
+          <View style={[styles.errorContainer, { backgroundColor: colors.error + '10' }]}>
+            <Icon name="alert-circle" size={16} color={colors.error} />
             <Text style={[styles.errorText, { color: colors.error }]}>{sendError}</Text>
           </View>
         ) : null}
@@ -193,31 +252,42 @@ export default function ChatScreen({ route, navigation }) {
           </View>
         )}
 
-        <View style={[styles.inputContainer, { borderTopColor: colors.border, backgroundColor: colors.background }]}>
-          <View style={[styles.inputWrapper, { backgroundColor: colors.gray100, borderColor: colors.border }]}>
+        <View style={[styles.inputContainer, { backgroundColor: colors.background }]}>
+          <View style={[
+            styles.inputWrapper, 
+            { backgroundColor: isDark ? colors.cardBackground : '#f9fafb', borderColor: isDark ? colors.border : '#e5e7eb' }
+          ]}>
             <Input
-              placeholder="Message..."
+              placeholder="Start typing..."
+              placeholderTextColor={colors.textTertiary}
               value={newMessage}
               onChangeText={setNewMessage}
               style={styles.input}
-              inputStyle={styles.inputText}
+              inputStyle={[styles.inputText, { color: colors.textPrimary }]}
               multiline
               maxLength={5000}
               editable={!sending}
             />
+            <TouchableOpacity
+              style={[
+                styles.sendButton, 
+                { backgroundColor: newMessage.trim() && !sending ? colors.primary : 'transparent' }
+              ]}
+              onPress={handleSendMessage}
+              disabled={!newMessage.trim() || sending}
+              activeOpacity={0.8}
+            >
+              {sending ? (
+                <View style={[styles.sendingDot, { backgroundColor: isDark ? colors.textPrimary : '#fff' }]} />
+              ) : (
+                <Icon 
+                  name={newMessage.trim() ? "arrow-up" : "mic"} 
+                  size={18} 
+                  color={newMessage.trim() ? '#ffffff' : colors.textTertiary} 
+                />
+              )}
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={[styles.sendButton, { backgroundColor: newMessage.trim() && !sending ? colors.primary : colors.gray200 }]}
-            onPress={handleSendMessage}
-            disabled={!newMessage.trim() || sending}
-            activeOpacity={0.75}
-          >
-            {sending ? (
-              <View style={[styles.sendingDot, { backgroundColor: colors.gray400 }]} />
-            ) : (
-              <Icon name="send" size={18} color={newMessage.trim() ? '#ffffff' : colors.gray400} />
-            )}
-          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -225,30 +295,185 @@ export default function ChatScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  keyboardView: { flex: 1 },
-  headerButtons: { flexDirection: 'row', alignItems: 'center', marginRight: spacing.xs },
-  headerButton: { padding: spacing.sm },
-  messagesList: { padding: spacing.md, flexGrow: 1 },
-  message: { maxWidth: '75%', padding: spacing.md, borderRadius: borderRadius.lg, marginBottom: spacing.sm },
-  myMessage: { alignSelf: 'flex-end', borderBottomRightRadius: 4 },
-  theirMessage: { alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
-  messageContent: { fontSize: fontSize.md, lineHeight: fontSize.md * 1.4 },
-  messageTime: { fontSize: fontSize.xs, marginTop: spacing.xs },
-  inputContainer: { flexDirection: 'row', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderTopWidth: 1, alignItems: 'flex-end', gap: spacing.sm, shadowColor: '#000', shadowOffset: { width: 0, height: -1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 4 },
-  inputWrapper: { flex: 1, borderRadius: borderRadius.full, borderWidth: 1, overflow: 'hidden' },
-  input: { flex: 1, marginBottom: 0 },
-  inputText: { maxHeight: 100, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: 'transparent', minHeight: 0 },
-  sendButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
-  sendingDot: { width: 8, height: 8, borderRadius: 4 },
-  errorContainer: { padding: spacing.sm, marginHorizontal: spacing.md, marginBottom: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1 },
-  errorText: { fontSize: fontSize.sm, textAlign: 'center' },
-  offlineBar: { padding: spacing.xs, alignItems: 'center' },
-  offlineText: { color: '#ffffff', fontSize: fontSize.xs, fontWeight: '600' },
-  typingIndicator: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
-  typingDots: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-  dot1: { opacity: 0.4 },
-  dot2: { opacity: 0.6 },
-  dot3: { opacity: 0.8 },
+  container: { 
+    flex: 1 
+  },
+  keyboardView: { 
+    flex: 1 
+  },
+  
+  /* Header UI */
+  headerTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: Platform.OS === 'ios' ? 0 : -16,
+  },
+  headerTextWrap: {
+    marginLeft: 10,
+    justifyContent: 'center',
+  },
+  headerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+  headerStatus: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  headerButtons: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    marginRight: 8,
+  },
+  headerButton: { 
+    padding: 8,
+    marginLeft: 4,
+  },
+
+  /* Chat List */
+  messagesList: { 
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  
+  /* Bubbles */
+  messageOuter: {
+    marginBottom: 4,
+    maxWidth: '80%',
+  },
+  messageOuterMe: {
+    alignSelf: 'flex-end',
+  },
+  messageOuterThem: {
+    alignSelf: 'flex-start',
+  },
+  messageOuterLast: {
+    marginBottom: 20,
+  },
+  messageBubble: { 
+    paddingHorizontal: 16,
+    paddingVertical: 10, 
+    borderRadius: 20, 
+  },
+  myMessage: { 
+    borderBottomRightRadius: 6,
+  },
+  theirMessage: { 
+    borderBottomLeftRadius: 6,
+  },
+  myMessageLast: {
+    borderBottomRightRadius: 20,
+  },
+  theirMessageLast: {
+    borderBottomLeftRadius: 20,
+  },
+  messageContent: { 
+    fontSize: 15, 
+    lineHeight: 22,
+  },
+  messageTime: { 
+    fontSize: 11,
+    marginTop: 6,
+    marginHorizontal: 4,
+  },
+  messageTimeMe: {
+    alignSelf: 'flex-end',
+  },
+  messageTimeThem: {
+    alignSelf: 'flex-start',
+  },
+
+  /* Typing */
+  typingBubble: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+  },
+  typingDots: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    gap: 4 
+  },
+  dot: { 
+    width: 6, 
+    height: 6, 
+    borderRadius: 3,
+    opacity: 0.4,
+  },
+  dot2: { 
+    opacity: 0.6 
+  },
+  dot3: { 
+    opacity: 0.8 
+  },
+
+  /* Input Area */
+  inputContainer: { 
+    paddingHorizontal: 16, 
+    paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 16,
+  },
+  inputWrapper: { 
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    borderRadius: 24, 
+    borderWidth: 1, 
+    paddingLeft: 16,
+    paddingRight: 6,
+    paddingVertical: 6,
+  },
+  input: { 
+    flex: 1, 
+    marginBottom: 0,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+  },
+  inputText: { 
+    maxHeight: 120, 
+    paddingHorizontal: 0, 
+    paddingVertical: 8, 
+    backgroundColor: 'transparent', 
+    minHeight: 0,
+    fontSize: 15,
+  },
+  sendButton: { 
+    width: 36, 
+    height: 36, 
+    borderRadius: 18, 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginLeft: 8,
+    marginBottom: 2,
+  },
+  sendingDot: { 
+    width: 8, 
+    height: 8, 
+    borderRadius: 4 
+  },
+
+  /* Status Bars */
+  errorContainer: { 
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12, 
+    marginHorizontal: 16, 
+    marginBottom: 12, 
+    borderRadius: 12, 
+  },
+  errorText: { 
+    fontSize: 13, 
+    fontWeight: '500',
+    flex: 1,
+  },
+  offlineBar: { 
+    padding: 6, 
+    alignItems: 'center',
+  },
+  offlineText: { 
+    color: '#ffffff', 
+    fontSize: 12, 
+    fontWeight: '600' 
+  },
 });

@@ -1,30 +1,52 @@
 import { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, Alert, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { 
+  View, 
+  ScrollView, 
+  StyleSheet, 
+  Alert, 
+  Text, 
+  TouchableOpacity, 
+  Image, 
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, Input, Textarea, Card } from '../../components/ui';
+import { Button, Input, Textarea } from '../../components/ui';
 import VoiceInput from '../../components/voice/VoiceInput';
 import { preferencesAPI, searchAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
-import { spacing, fontSize, fontWeight, borderRadius } from '../../constants/styles';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 export default function PreferenceCreateScreen({ navigation }) {
-  const { colors } = useTheme();
-  const [formData, setFormData] = useState({ title: '', description: '', category_id: '', location: '', rating: 5, price_range: '', tags: '' });
+  const { colors, isDark } = useTheme();
+  
+  const [formData, setFormData] = useState({ 
+    title: '', 
+    description: '', 
+    category_id: '', 
+    location: '', 
+    rating: 0, // Default 0 to encourage user to set it
+    price_range: '', 
+    tags: '' 
+  });
+  
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showVoice, setShowVoice] = useState(false);
   const [images, setImages] = useState([]);
   const [uploadingImages, setUploadingImages] = useState(false);
+  
+  // UI State
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showPriceRangePicker, setShowPriceRangePicker] = useState(false);
 
   const priceRangeOptions = [
-    { value: '$', label: '$ - Budget' },
-    { value: '$$', label: '$$ - Moderate' },
-    { value: '$$$', label: '$$$ - Expensive' },
-    { value: '$$$$', label: '$$$$ - Luxury' },
+    { value: '$', label: '$ — Budget-friendly' },
+    { value: '$$', label: '$$ — Moderate' },
+    { value: '$$$', label: '$$$ — Splurge' },
+    { value: '$$$$', label: '$$$$ — Luxury' },
   ];
 
   useEffect(() => { loadCategories(); }, []);
@@ -52,7 +74,7 @@ export default function PreferenceCreateScreen({ navigation }) {
 
   const getCategoryName = (categoryId) => {
     const category = categories.find(c => c.id === categoryId || c.id === Number.parseInt(categoryId, 10));
-    return category ? category.name : 'Select a category';
+    return category ? category.name : 'Choose a category';
   };
 
   const getPriceRangeLabel = (value) => {
@@ -86,18 +108,34 @@ export default function PreferenceCreateScreen({ navigation }) {
 
   const addImage = (asset) => {
     if (images.length >= 5) { Alert.alert('Limit Reached', 'You can add up to 5 images only'); return; }
-    setImages(prev => [...prev, { id: `${Date.now()}_${Math.random()}`, uri: asset.uri, type: asset.type || 'image/jpeg', fileName: asset.fileName || `photo_${Date.now()}.jpg`, fileSize: asset.fileSize }]);
+    setImages(prev => [...prev, { 
+      id: `${Date.now()}_${Math.random()}`, 
+      uri: asset.uri, 
+      type: asset.type || 'image/jpeg', 
+      fileName: asset.fileName || `photo_${Date.now()}.jpg`, 
+      fileSize: asset.fileSize 
+    }]);
   };
 
   const removeImage = (imageId) => setImages(prev => prev.filter(img => img.id !== imageId));
 
   const handleSubmit = async () => {
+    if (!formData.title || !formData.category_id) {
+      Alert.alert('Missing Info', 'Please provide at least a title and category.');
+      return;
+    }
+
     setLoading(true);
     setUploadingImages(images.length > 0);
     try {
-      const response = await preferencesAPI.create(formData);
+      const response = await preferencesAPI.create({
+        ...formData,
+        rating: formData.rating === 0 ? 5 : formData.rating // fallback if left 0
+      });
+      
       const preferenceId = response?.data?.preference?.id || response?.data?.id || response?.id;
       if (!preferenceId) throw new Error('Failed to get preference ID from response');
+      
       if (images.length > 0) {
         for (const image of images) {
           try { await preferencesAPI.uploadImage(preferenceId, image); }
@@ -105,7 +143,7 @@ export default function PreferenceCreateScreen({ navigation }) {
         }
       }
       setUploadingImages(false);
-      Alert.alert('Success', 'Preference created successfully!');
+      Alert.alert('Success!', 'Your preference has been shared.');
       navigation.goBack();
     } catch (error) {
       setUploadingImages(false);
@@ -116,148 +154,445 @@ export default function PreferenceCreateScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView style={styles.scroll}>
-        <Card style={styles.card}>
-          <Button onPress={() => setShowVoice(!showVoice)} variant="outline">
-            {showVoice ? 'Hide Voice Input' : 'Use Voice Input'}
-          </Button>
-
-          {showVoice && <VoiceInput onProcessed={handleVoiceProcessed} />}
-
-          <Input label="Title" placeholder="What's your preference?" value={formData.title} onChangeText={(t) => setFormData({ ...formData, title: t })} />
-          <Textarea label="Description" placeholder="Tell us more about it..." value={formData.description} onChangeText={(t) => setFormData({ ...formData, description: t })} />
-          <Input label="Location" placeholder="Where is it? (e.g., Downtown, NYC)" value={formData.location} onChangeText={(t) => setFormData({ ...formData, location: t })} />
-
-          {/* Category Selector */}
-          <View style={styles.fieldContainer}>
-            <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>Category <Text style={{ color: colors.error }}>*</Text></Text>
-            <TouchableOpacity style={[styles.pickerButton, { borderColor: colors.border, backgroundColor: colors.inputBackground }]} onPress={() => setShowCategoryPicker(!showCategoryPicker)}>
-              <Text style={[formData.category_id ? styles.pickerText : styles.pickerPlaceholder, { color: formData.category_id ? colors.textPrimary : colors.textSecondary }]}>
-                {getCategoryName(formData.category_id)}
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
+      <KeyboardAvoidingView 
+        style={styles.container} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+      >
+        <ScrollView 
+          style={styles.scroll} 
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Top Actions: Voice Input */}
+          <View style={styles.topActions}>
+            <TouchableOpacity 
+              style={[
+                styles.voiceToggle, 
+                showVoice ? { backgroundColor: colors.primary + '15', borderColor: colors.primary } : { borderColor: colors.border }
+              ]}
+              onPress={() => setShowVoice(!showVoice)}
+              activeOpacity={0.7}
+            >
+              <Icon 
+                name={showVoice ? "mic" : "mic-outline"} 
+                size={20} 
+                color={showVoice ? colors.primary : colors.textPrimary} 
+              />
+              <Text style={[
+                styles.voiceToggleText, 
+                { color: showVoice ? colors.primary : colors.textPrimary }
+              ]}>
+                {showVoice ? 'Close Voice Input' : 'Dictate with AI'}
               </Text>
-              <Icon name={showCategoryPicker ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textSecondary} />
             </TouchableOpacity>
-            {showCategoryPicker && (
-              <View style={[styles.pickerOptions, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}>
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category.id}
-                    style={[styles.pickerOption, { borderBottomColor: colors.border }, formData.category_id === category.id && { backgroundColor: colors.primary + '20' }]}
-                    onPress={() => { setFormData({ ...formData, category_id: category.id }); setShowCategoryPicker(false); }}
-                  >
-                    <Text style={[styles.pickerOptionText, { color: formData.category_id === category.id ? colors.primary : colors.textPrimary }, formData.category_id === category.id && { fontWeight: fontWeight.semibold }]}>
-                      {category.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
           </View>
 
-          {/* Rating Selector */}
-          <View style={styles.fieldContainer}>
-            <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>Rating</Text>
-            <View style={styles.ratingContainer}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <TouchableOpacity key={star} onPress={() => setFormData(prev => ({ ...prev, rating: star }))} style={styles.starButton}>
-                  <Icon name={star <= formData.rating ? 'star' : 'star-outline'} size={32} color={star <= formData.rating ? '#FBBF24' : colors.gray300} />
-                </TouchableOpacity>
-              ))}
-              <Text style={[styles.ratingText, { color: colors.textSecondary }]}>{formData.rating}/5</Text>
+          {showVoice && (
+            <View style={styles.voiceContainer}>
+              <VoiceInput onProcessed={handleVoiceProcessed} />
             </View>
+          )}
+
+          {/* Section: Basic Info */}
+          <View style={styles.section}>
+            <Input 
+              label="What did you discover?" 
+              placeholder="e.g., Best iced latte in Brooklyn" 
+              value={formData.title} 
+              onChangeText={(t) => setFormData({ ...formData, title: t })} 
+            />
+            <Textarea 
+              label="Details" 
+              placeholder="Why is it great? What should others know?" 
+              value={formData.description} 
+              onChangeText={(t) => setFormData({ ...formData, description: t })} 
+            />
           </View>
 
-          {/* Price Range Selector */}
-          <View style={styles.fieldContainer}>
-            <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>Price Range</Text>
-            <TouchableOpacity style={[styles.pickerButton, { borderColor: colors.border, backgroundColor: colors.inputBackground }]} onPress={() => setShowPriceRangePicker(!showPriceRangePicker)}>
-              <Text style={[formData.price_range ? styles.pickerText : styles.pickerPlaceholder, { color: formData.price_range ? colors.textPrimary : colors.textSecondary }]}>
-                {getPriceRangeLabel(formData.price_range)}
+          {/* Section: Categorization */}
+          <View style={[styles.section, styles.groupedSection, { backgroundColor: isDark ? colors.cardBackground : '#f9fafb', borderColor: colors.border }]}>
+            
+            {/* Category */}
+            <View style={styles.fieldContainer}>
+              <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>
+                Category <Text style={{ color: colors.error }}>*</Text>
               </Text>
-              <Icon name={showPriceRangePicker ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textSecondary} />
-            </TouchableOpacity>
-            {showPriceRangePicker && (
-              <View style={[styles.pickerOptions, { borderColor: colors.border, backgroundColor: colors.inputBackground }]}>
-                {priceRangeOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[styles.pickerOption, { borderBottomColor: colors.border }, formData.price_range === option.value && { backgroundColor: colors.primary + '20' }]}
-                    onPress={() => { setFormData({ ...formData, price_range: option.value }); setShowPriceRangePicker(false); }}
-                  >
-                    <Text style={[styles.pickerOptionText, { color: formData.price_range === option.value ? colors.primary : colors.textPrimary }]}>
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
-
-          <Input label="Tags" placeholder="e.g., cozy, wifi, outdoor seating (comma separated)" value={formData.tags} onChangeText={(t) => setFormData({ ...formData, tags: t })} />
-
-          {/* Image Section */}
-          <View style={styles.imageSection}>
-            <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>Photos ({images.length}/5)</Text>
-            {images.length > 0 && (
-              <View style={styles.imageGrid}>
-                {images.map((image) => (
-                  <View key={image.id} style={styles.imagePreviewContainer}>
-                    <Image source={{ uri: image.uri }} style={styles.imagePreview} />
-                    <TouchableOpacity style={styles.removeImageButton} onPress={() => removeImage(image.id)}>
-                      <Text style={styles.removeImageText}>✕</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            )}
-            {images.length < 5 && (
-              <TouchableOpacity style={[styles.addImageButton, { borderColor: colors.border, backgroundColor: colors.gray50 }]} onPress={handleImagePicker}>
-                <Text style={styles.addImageIcon}>📷</Text>
-                <Text style={[styles.addImageText, { color: colors.textSecondary }]}>Add Photo</Text>
+              <TouchableOpacity 
+                style={[styles.pickerButton, { borderColor: showCategoryPicker ? colors.primary : colors.border, backgroundColor: colors.background }]} 
+                onPress={() => setShowCategoryPicker(!showCategoryPicker)}
+                activeOpacity={0.8}
+              >
+                <Text style={[
+                  styles.pickerText, 
+                  { color: formData.category_id ? colors.textPrimary : colors.textTertiary }
+                ]}>
+                  {getCategoryName(formData.category_id)}
+                </Text>
+                <Icon name={showCategoryPicker ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textSecondary} />
               </TouchableOpacity>
-            )}
+              
+              {showCategoryPicker && (
+                <View style={[styles.pickerOptions, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                  {categories.map((category, index) => {
+                    const isSelected = formData.category_id === category.id;
+                    const isLast = index === categories.length - 1;
+                    return (
+                      <TouchableOpacity
+                        key={category.id}
+                        style={[
+                          styles.pickerOption, 
+                          !isLast && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
+                          isSelected && { backgroundColor: colors.primary + '10' }
+                        ]}
+                        onPress={() => { setFormData({ ...formData, category_id: category.id }); setShowCategoryPicker(false); }}
+                      >
+                        <Text style={[
+                          styles.pickerOptionText, 
+                          { color: isSelected ? colors.primary : colors.textPrimary },
+                          isSelected && { fontWeight: '600' }
+                        ]}>
+                          {category.name}
+                        </Text>
+                        {isSelected && <Icon name="checkmark" size={18} color={colors.primary} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
+            {/* Price Range */}
+            <View style={styles.fieldContainer}>
+              <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>Price Range</Text>
+              <TouchableOpacity 
+                style={[styles.pickerButton, { borderColor: showPriceRangePicker ? colors.primary : colors.border, backgroundColor: colors.background }]} 
+                onPress={() => setShowPriceRangePicker(!showPriceRangePicker)}
+                activeOpacity={0.8}
+              >
+                <Text style={[
+                  styles.pickerText, 
+                  { color: formData.price_range ? colors.textPrimary : colors.textTertiary }
+                ]}>
+                  {getPriceRangeLabel(formData.price_range)}
+                </Text>
+                <Icon name={showPriceRangePicker ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textSecondary} />
+              </TouchableOpacity>
+              
+              {showPriceRangePicker && (
+                <View style={[styles.pickerOptions, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                  {priceRangeOptions.map((option, index) => {
+                    const isSelected = formData.price_range === option.value;
+                    const isLast = index === priceRangeOptions.length - 1;
+                    return (
+                      <TouchableOpacity
+                        key={option.value}
+                        style={[
+                          styles.pickerOption, 
+                          !isLast && { borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth },
+                          isSelected && { backgroundColor: colors.primary + '10' }
+                        ]}
+                        onPress={() => { setFormData({ ...formData, price_range: option.value }); setShowPriceRangePicker(false); }}
+                      >
+                        <Text style={[
+                          styles.pickerOptionText, 
+                          { color: isSelected ? colors.primary : colors.textPrimary },
+                          isSelected && { fontWeight: '600' }
+                        ]}>
+                          {option.label}
+                        </Text>
+                        {isSelected && <Icon name="checkmark" size={18} color={colors.primary} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
+            {/* Tags & Location */}
+            <Input 
+              label="Location" 
+              placeholder="e.g., Downtown, NYC" 
+              value={formData.location} 
+              onChangeText={(t) => setFormData({ ...formData, location: t })} 
+            />
+            <Input 
+              label="Tags" 
+              placeholder="cozy, wifi, outdoor (comma separated)" 
+              value={formData.tags} 
+              onChangeText={(t) => setFormData({ ...formData, tags: t })} 
+            />
+          </View>
+
+          {/* Section: Rating */}
+          <View style={styles.ratingSection}>
+            <Text style={[styles.sectionLabel, { color: colors.textPrimary }]}>Your Rating</Text>
+            <View style={styles.ratingStarsWrap}>
+              {[1, 2, 3, 4, 5].map((star) => {
+                const isActive = star <= formData.rating;
+                return (
+                  <TouchableOpacity 
+                    key={star} 
+                    onPress={() => setFormData(prev => ({ ...prev, rating: star }))} 
+                    style={styles.starButton}
+                    activeOpacity={0.7}
+                  >
+                    <Icon 
+                      name={isActive ? 'star' : 'star-outline'} 
+                      size={40} 
+                      color={isActive ? '#FBBF24' : colors.textTertiary} 
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <Text style={[styles.ratingCaption, { color: colors.textSecondary }]}>
+              {formData.rating === 0 ? 'Tap to rate' : `${formData.rating} out of 5 stars`}
+            </Text>
+          </View>
+
+          {/* Section: Photos */}
+          <View style={styles.imageSection}>
+            <View style={styles.imageSectionHeader}>
+              <Text style={[styles.sectionLabel, { color: colors.textPrimary, marginBottom: 0 }]}>Photos</Text>
+              <Text style={[styles.photoCount, { color: colors.textSecondary }]}>{images.length} / 5</Text>
+            </View>
+            
+            <View style={styles.imageGrid}>
+              {images.map((image) => (
+                <View key={image.id} style={styles.imagePreviewContainer}>
+                  <Image source={{ uri: image.uri }} style={styles.imagePreview} />
+                  <TouchableOpacity style={styles.removeImageButton} onPress={() => removeImage(image.id)}>
+                    <Icon name="close" size={16} color="#ffffff" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+              
+              {images.length < 5 && (
+                <TouchableOpacity 
+                  style={[styles.addImageButton, { borderColor: colors.border, backgroundColor: isDark ? colors.cardBackground : '#f9fafb' }]} 
+                  onPress={handleImagePicker}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="camera-outline" size={28} color={colors.textSecondary} style={{ marginBottom: 4 }} />
+                  <Text style={[styles.addImageText, { color: colors.textSecondary }]}>Add Photo</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+
             {uploadingImages && (
-              <View style={[styles.uploadingContainer, { backgroundColor: colors.primary + '20' }]}>
+              <View style={[styles.uploadingContainer, { backgroundColor: colors.primary + '10' }]}>
                 <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={[styles.uploadingText, { color: colors.primary }]}>Uploading images...</Text>
+                <Text style={[styles.uploadingText, { color: colors.primary }]}>Uploading your photos...</Text>
               </View>
             )}
           </View>
 
-          <Button onPress={handleSubmit} loading={loading} disabled={!formData.title}>
+        </ScrollView>
+        
+        {/* Sticky Footer */}
+        <View style={[styles.footer, { borderTopColor: colors.border, backgroundColor: colors.background }]}>
+          <Button 
+            onPress={handleSubmit} 
+            loading={loading} 
+            disabled={!formData.title || !formData.category_id || loading}
+            style={styles.submitButton}
+          >
             Share Preference
           </Button>
-        </Card>
-      </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  scroll: { flex: 1 },
-  card: { margin: spacing.md },
-  fieldContainer: { marginBottom: spacing.md },
-  sectionLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, marginBottom: spacing.sm },
-  pickerButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingVertical: spacing.md, borderWidth: 1, borderRadius: borderRadius.md },
-  pickerText: { fontSize: fontSize.md },
-  pickerPlaceholder: { fontSize: fontSize.md },
-  pickerOptions: { marginTop: spacing.xs, borderWidth: 1, borderRadius: borderRadius.md, maxHeight: 200 },
-  pickerOption: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: 1 },
-  pickerOptionText: { fontSize: fontSize.md },
-  ratingContainer: { flexDirection: 'row', alignItems: 'center' },
-  starButton: { marginRight: spacing.xs },
-  ratingText: { marginLeft: spacing.sm, fontSize: fontSize.md },
-  imageSection: { marginVertical: spacing.md },
-  imageGrid: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing.md, gap: spacing.sm },
-  imagePreviewContainer: { position: 'relative', width: 100, height: 100, borderRadius: borderRadius.md, overflow: 'hidden' },
-  imagePreview: { width: '100%', height: '100%', borderRadius: borderRadius.md },
-  removeImageButton: { position: 'absolute', top: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: borderRadius.full, width: 24, height: 24, justifyContent: 'center', alignItems: 'center' },
-  removeImageText: { color: '#ffffff', fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  addImageButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderStyle: 'dashed', borderRadius: borderRadius.md, paddingVertical: spacing.lg, paddingHorizontal: spacing.md },
-  addImageIcon: { fontSize: fontSize.xl, marginRight: spacing.sm },
-  addImageText: { fontSize: fontSize.md, fontWeight: fontWeight.medium },
-  uploadingContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: spacing.md, padding: spacing.md, borderRadius: borderRadius.md },
-  uploadingText: { marginLeft: spacing.sm, fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+  container: { 
+    flex: 1 
+  },
+  scroll: { 
+    flex: 1 
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 40,
+  },
+  
+  /* Top Actions */
+  topActions: {
+    marginBottom: 24,
+    alignItems: 'flex-start',
+  },
+  voiceToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  voiceToggleText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  voiceContainer: {
+    marginBottom: 24,
+  },
+
+  /* Sections */
+  section: {
+    marginBottom: 32,
+  },
+  groupedSection: {
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 32,
+  },
+  sectionLabel: { 
+    fontSize: 15, 
+    fontWeight: '600', 
+    marginBottom: 10,
+    letterSpacing: 0.2,
+  },
+  
+  /* Fields & Pickers */
+  fieldContainer: { 
+    marginBottom: 20 
+  },
+  pickerButton: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'space-between', 
+    paddingHorizontal: 16, 
+    height: 52,
+    borderWidth: 1, 
+    borderRadius: 12,
+  },
+  pickerText: { 
+    fontSize: 15,
+    fontWeight: '500', 
+  },
+  pickerOptions: { 
+    marginTop: 8, 
+    borderWidth: 1, 
+    borderRadius: 12, 
+    overflow: 'hidden',
+  },
+  pickerOption: { 
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16, 
+    paddingVertical: 14, 
+  },
+  pickerOptionText: { 
+    fontSize: 15 
+  },
+
+  /* Rating */
+  ratingSection: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  ratingStarsWrap: { 
+    flexDirection: 'row', 
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 12,
+  },
+  starButton: { 
+    marginHorizontal: 8,
+  },
+  ratingCaption: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  /* Media */
+  imageSection: { 
+    marginBottom: 16,
+  },
+  imageSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  photoCount: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  imageGrid: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 12, 
+  },
+  imagePreviewContainer: { 
+    width: '30%', 
+    aspectRatio: 1, 
+    borderRadius: 12, 
+    overflow: 'hidden',
+    position: 'relative'
+  },
+  imagePreview: { 
+    width: '100%', 
+    height: '100%' 
+  },
+  removeImageButton: { 
+    position: 'absolute', 
+    top: 6, 
+    right: 6, 
+    backgroundColor: 'rgba(0,0,0,0.5)', 
+    borderRadius: 12, 
+    width: 24, 
+    height: 24, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  addImageButton: { 
+    width: '30%', 
+    aspectRatio: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    borderWidth: 1, 
+    borderStyle: 'dashed', 
+    borderRadius: 12, 
+  },
+  addImageText: { 
+    fontSize: 13, 
+    fontWeight: '500',
+    marginTop: 4,
+  },
+  
+  /* Uploading */
+  uploadingContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    justifyContent: 'center', 
+    marginTop: 16, 
+    padding: 16, 
+    borderRadius: 12,
+  },
+  uploadingText: { 
+    marginLeft: 10, 
+    fontSize: 14, 
+    fontWeight: '600' 
+  },
+
+  /* Footer */
+  footer: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  submitButton: {
+    height: 52,
+    borderRadius: 12,
+  }
 });
