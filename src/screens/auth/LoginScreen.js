@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   StatusBar,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
@@ -56,11 +57,11 @@ export default function LoginScreen({ navigation }) {
         >
           {/* Brand */}
           <View style={styles.brand}>
-            <View style={styles.logoMark}>
-              <Text style={styles.logoMarkText}>U</Text>
-            </View>
-            <Text style={styles.appName}>Unomi</Text>
-            <Text style={styles.tagline}>Discover & Share Preferences</Text>
+            <Image 
+              source={require('../../../assets/logo_full.png')} 
+              style={styles.logoImage} 
+              resizeMode="contain" 
+            />
           </View>
 
           {/* Form */}
@@ -183,31 +184,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 48,
   },
-  logoMark: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: PRIMARY,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  logoMarkText: {
-    color: '#ffffff',
-    fontSize: 26,
-    fontWeight: '700',
-    letterSpacing: -0.5,
-  },
-  appName: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: TEXT_MAIN,
-    letterSpacing: -0.3,
-    marginBottom: 4,
-  },
-  tagline: {
-    fontSize: 14,
-    color: TEXT_SECONDARY,
+  logoImage: {
+    width: 140,
+    height: 140,
   },
 
   /* ── Form ── */

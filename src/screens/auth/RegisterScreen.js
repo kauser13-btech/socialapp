@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input, Card } from '../../components/ui';
@@ -70,8 +71,11 @@ export default function RegisterScreen({ navigation }) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.header}>
-            <Text style={[styles.logo, { color: colors.primary }]}>Unomi</Text>
-            <Text style={[styles.tagline, { color: colors.textSecondary }]}>Join the Community</Text>
+            <Image 
+              source={require('../../../assets/logo_full.png')} 
+              style={styles.logoImage} 
+              resizeMode="contain" 
+            />
           </View>
 
           <Card style={styles.formCard}>
@@ -106,8 +110,7 @@ const styles = StyleSheet.create({
   keyboardView: { flex: 1 },
   scrollContent: { flexGrow: 1, justifyContent: 'center', padding: spacing.lg },
   header: { alignItems: 'center', marginBottom: spacing.xl },
-  logo: { fontSize: fontSize.xxxl, fontWeight: fontWeight.bold, marginBottom: spacing.sm },
-  tagline: { fontSize: fontSize.md },
+  logoImage: { width: 140, height: 140 },
   formCard: { padding: spacing.xl },
   title: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, marginBottom: spacing.xs },
   subtitle: { fontSize: fontSize.md, marginBottom: spacing.xl },

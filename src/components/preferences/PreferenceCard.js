@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Avatar } from '../ui';
 import ImageWithLoader from '../ui/ImageWithLoader';
 import { preferencesAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
+import { shadows } from '../../constants/styles';
 
 export default function PreferenceCard({ preference, onUpdate }) {
   const navigation = useNavigation();
@@ -87,12 +88,23 @@ export default function PreferenceCard({ preference, onUpdate }) {
         styles.card, 
         { 
           backgroundColor: isDark ? colors.cardBackground : '#ffffff',
-          borderColor: isDark ? colors.border : '#f3f4f6'
+          borderColor: isDark ? colors.border : '#ffffff', // hide border on light mode if card has shadow 
+          ...(!isDark ? shadows.md : {}), // Add shadow on light mode only for cleaner dark mode depth
         }
       ]} 
       onPress={handlePress}
       activeOpacity={0.9}
     >
+      {/* Category Background Watermark */}
+      {preference.category && catIcon && (
+        <Icon 
+          name={catIcon.name} 
+          size={80} 
+          color={isDark ? catIcon.color + '15' : catIcon.color + '10'} 
+          style={styles.watermarkIcon} 
+        />
+      )}
+
       {/* User Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -108,15 +120,6 @@ export default function PreferenceCard({ preference, onUpdate }) {
             <Text style={[styles.username, { color: colors.textSecondary }]}>@{preference.user?.username}</Text>
           </View>
         </TouchableOpacity>
-        
-        {preference.category && catIcon && (
-          <View style={[styles.categoryBadge, { backgroundColor: isDark ? catIcon.color + '20' : catIcon.color + '15' }]}>
-            <Icon name={catIcon.name} size={12} color={catIcon.color} style={{ marginRight: 4 }} />
-            <Text style={[styles.categoryText, { color: catIcon.color }]} numberOfLines={1}>
-              {preference.category.name}
-            </Text>
-          </View>
-        )}
       </View>
 
       {/* Content */}
@@ -207,7 +210,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 20,
     borderWidth: 1,
-    overflow: 'hidden',
+    // Note: Do not use overflow: 'hidden' with shadows on iOS and Android seamlessly or the shadow gets cropped.
+    // Instead we rely on the inner elements respecting the border radius.
+  },
+  watermarkIcon: {
+    position: 'absolute',
+    top: -10,
+    right: -10,
+    zIndex: 0,
+    transform: [{ rotate: '15deg' }],
   },
   header: {
     flexDirection: 'row',
@@ -216,6 +227,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     marginBottom: 12,
+    zIndex: 1,
   },
   userInfo: {
     flexDirection: 'row',
@@ -234,20 +246,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
-  categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 12,
-    maxWidth: 120,
-  },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
   content: {
     paddingHorizontal: 16,
+    zIndex: 1,
   },
   title: {
     fontSize: 18,
@@ -309,6 +310,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 12,
     marginTop: 8,
+    zIndex: 1,
   },
   actionButton: {
     flexDirection: 'row',

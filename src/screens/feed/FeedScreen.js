@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ScrollView,
+  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -67,15 +68,11 @@ export default function FeedScreen({ navigation }) {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.logo, { color: colors.primary }]}>Unomi</Text>
-        <TouchableOpacity 
-          style={[styles.createBtn, { backgroundColor: colors.primary }]}
-          onPress={() => navigation.navigate('PreferenceCreate')}
-          activeOpacity={0.8}
-        >
-          <Icon name="add" size={16} color="#fff" style={{ marginRight: 2 }} />
-          <Text style={styles.createBtnText}>Create</Text>
-        </TouchableOpacity>
+        <Image 
+          source={require('../../../assets/logo_text.png')} 
+          style={styles.logoImage} 
+          resizeMode="contain" 
+        />
       </View>
 
       {/* Tabs */}
@@ -143,6 +140,15 @@ export default function FeedScreen({ navigation }) {
           }
         />
       )}
+
+      {/* Floating Action Button */}
+      <TouchableOpacity 
+        style={[styles.fab, { backgroundColor: colors.primary, shadowColor: colors.primary }]}
+        onPress={() => navigation.navigate('PreferenceCreate')}
+        activeOpacity={0.8}
+      >
+        <Icon name="add" size={28} color="#ffffff" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -166,22 +172,24 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 8,
   },
-  logo: { 
-    fontSize: 28, 
-    fontWeight: '800', 
-    letterSpacing: -0.5,
+  logoImage: { 
+    width: 100, 
+    height: 38, // Adjust ratio matching ~1024x276
   },
-  createBtn: {
-    flexDirection: 'row',
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  createBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
+    justifyContent: 'center',
+    elevation: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    zIndex: 100,
   },
 
   /* Tabs */
