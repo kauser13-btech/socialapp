@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Card, Avatar, Button } from '../ui';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { Avatar } from '../ui';
 import ImageWithLoader from '../ui/ImageWithLoader';
 import { preferencesAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
-import { spacing, fontSize, fontWeight, borderRadius } from '../../constants/styles';
 
 export default function PreferenceCard({ preference, onUpdate }) {
   const navigation = useNavigation();
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [isLiked, setIsLiked] = useState(preference.is_liked || false);
   const [isSaved, setIsSaved] = useState(preference.is_saved || false);
   const [likesCount, setLikesCount] = useState(preference.likes_count || 0);
@@ -53,31 +53,68 @@ export default function PreferenceCard({ preference, onUpdate }) {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       stars.push(
-        <Text key={i} style={styles.star}>
-          {i <= rating ? '★' : '☆'}
-        </Text>
+        <Icon 
+          key={i} 
+          name={i <= rating ? "star" : "star-outline"} 
+          size={16} 
+          color="#fbbf24" 
+          style={styles.star} 
+        />
       );
     }
     return stars;
   };
 
+  const getIconForCategory = (name) => {
+    if (!name) return { name: 'folder-open', color: colors.primary };
+    const lower = name.toLowerCase();
+    if (lower.includes('food') || lower.includes('dining')) return { name: 'restaurant', color: '#f43f5e' };
+    if (lower.includes('movie') || lower.includes('film')) return { name: 'film', color: '#8b5cf6' };
+    if (lower.includes('travel') || lower.includes('trip')) return { name: 'airplane', color: '#0ea5e9' };
+    if (lower.includes('music')) return { name: 'musical-notes', color: '#10b981' };
+    if (lower.includes('game')) return { name: 'game-controller', color: '#f59e0b' };
+    if (lower.includes('book') || lower.includes('read')) return { name: 'book', color: '#6366f1' };
+    if (lower.includes('sport') || lower.includes('fitness')) return { name: 'fitness', color: '#ec4899' };
+    if (lower.includes('tech') || lower.includes('gadget')) return { name: 'hardware-chip', color: '#64748b' };
+    return { name: 'folder-open', color: colors.primary };
+  };
+
+  const catIcon = preference.category ? getIconForCategory(preference.category.name) : null;
+
   return (
-    <Card style={styles.card} onPress={handlePress}>
+    <TouchableOpacity 
+      style={[
+        styles.card, 
+        { 
+          backgroundColor: isDark ? colors.cardBackground : '#ffffff',
+          borderColor: isDark ? colors.border : '#f3f4f6'
+        }
+      ]} 
+      onPress={handlePress}
+      activeOpacity={0.9}
+    >
       {/* User Header */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.userInfo}
           onPress={() => navigation.navigate('UserProfile', { username: preference.user?.username })}
+          activeOpacity={0.7}
         >
           <Avatar user={preference.user} size="medium" />
           <View style={styles.userDetails}>
-            <Text style={[styles.userName, { color: colors.textPrimary }]}>{preference.user?.name}</Text>
+            <Text style={[styles.userName, { color: colors.textPrimary }]}>
+              {preference.user?.name || preference.user?.first_name || 'User'}
+            </Text>
             <Text style={[styles.username, { color: colors.textSecondary }]}>@{preference.user?.username}</Text>
           </View>
         </TouchableOpacity>
-        {preference.category && (
-          <View style={[styles.categoryBadge, { backgroundColor: colors.primary }]}>
-            <Text style={styles.categoryText} numberOfLines={1}>{preference.category.name}</Text>
+        
+        {preference.category && catIcon && (
+          <View style={[styles.categoryBadge, { backgroundColor: isDark ? catIcon.color + '20' : catIcon.color + '15' }]}>
+            <Icon name={catIcon.name} size={12} color={catIcon.color} style={{ marginRight: 4 }} />
+            <Text style={[styles.categoryText, { color: catIcon.color }]} numberOfLines={1}>
+              {preference.category.name}
+            </Text>
           </View>
         )}
       </View>
@@ -85,6 +122,7 @@ export default function PreferenceCard({ preference, onUpdate }) {
       {/* Content */}
       <View style={styles.content}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>{preference.title}</Text>
+        
         {preference.description && (
           <Text style={[styles.description, { color: colors.textSecondary }]} numberOfLines={3}>
             {preference.description}
@@ -98,7 +136,12 @@ export default function PreferenceCard({ preference, onUpdate }) {
         )}
 
         {preference.location && (
-          <Text style={[styles.location, { color: colors.textSecondary }]}>📍 {preference.location}</Text>
+          <View style={styles.locationWrapper}>
+            <Icon name="location-outline" size={14} color={colors.textSecondary} />
+            <Text style={[styles.location, { color: colors.textSecondary }]} numberOfLines={1}>
+              {preference.location}
+            </Text>
+          </View>
         )}
 
         {preference.images && preference.images.length > 0 && (
@@ -117,8 +160,8 @@ export default function PreferenceCard({ preference, onUpdate }) {
         {preference.tags && preference.tags.length > 0 && (
           <View style={styles.tagsContainer}>
             {preference.tags.map((tag, index) => (
-              <View key={index} style={[styles.tag, { backgroundColor: colors.gray100 }]}>
-                <Text style={[styles.tagText, { color: colors.primary }]}>#{tag}</Text>
+              <View key={index} style={[styles.tag, { backgroundColor: isDark ? colors.border : '#f3f4f6' }]}>
+                <Text style={[styles.tagText, { color: colors.textSecondary }]}>#{tag}</Text>
               </View>
             ))}
           </View>
@@ -127,43 +170,52 @@ export default function PreferenceCard({ preference, onUpdate }) {
 
       {/* Actions */}
       <View style={[styles.actions, { borderTopColor: colors.border }]}>
-        <TouchableOpacity style={styles.actionButton} onPress={handleLike}>
-          <Text style={[styles.actionIcon, isLiked && styles.actionIconActive]}>
-            {isLiked ? '❤️' : '🤍'}
-          </Text>
+        <TouchableOpacity style={styles.actionButton} onPress={handleLike} activeOpacity={0.6}>
+          <Icon 
+            name={isLiked ? "heart" : "heart-outline"} 
+            size={22} 
+            color={isLiked ? "#ef4444" : colors.textSecondary} 
+          />
           <Text style={[styles.actionText, { color: colors.textSecondary }]}>{likesCount}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={handlePress}>
-          <Text style={styles.actionIcon}>💬</Text>
+        <TouchableOpacity style={styles.actionButton} onPress={handlePress} activeOpacity={0.6}>
+          <Icon name="chatbubble-outline" size={20} color={colors.textSecondary} />
           <Text style={[styles.actionText, { color: colors.textSecondary }]}>{preference.comments_count || 0}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionIcon}>🔗</Text>
+        <TouchableOpacity style={styles.actionButton} activeOpacity={0.6}>
+          <Icon name="share-social-outline" size={20} color={colors.textSecondary} />
           <Text style={[styles.actionText, { color: colors.textSecondary }]}>Share</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={handleSave}>
-          <Text style={[styles.actionIcon, isSaved && styles.actionIconActive]}>
-            {isSaved ? '🔖' : '📑'}
-          </Text>
+        <TouchableOpacity style={styles.actionButton} onPress={handleSave} activeOpacity={0.6}>
+          <Icon 
+            name={isSaved ? "bookmark" : "bookmark-outline"} 
+            size={20} 
+            color={isSaved ? colors.primary : colors.textSecondary} 
+          />
           <Text style={[styles.actionText, { color: colors.textSecondary }]}>Save</Text>
         </TouchableOpacity>
       </View>
-    </Card>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    marginBottom: spacing.md,
+    marginBottom: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.md,
+    alignItems: 'flex-start',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    marginBottom: 12,
   },
   userInfo: {
     flexDirection: 'row',
@@ -171,97 +223,102 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   userDetails: {
-    marginLeft: spacing.md,
+    marginLeft: 12,
   },
   userName: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.semibold,
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: -0.2,
   },
   username: {
-    fontSize: fontSize.sm,
+    fontSize: 13,
+    marginTop: 2,
   },
   categoryBadge: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
     maxWidth: 120,
-    flexShrink: 1,
   },
   categoryText: {
-    fontSize: fontSize.sm,
-    color: '#ffffff',
-    fontWeight: fontWeight.medium,
+    fontSize: 12,
+    fontWeight: '600',
   },
   content: {
-    marginBottom: spacing.md,
+    paddingHorizontal: 16,
   },
   title: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    marginBottom: spacing.sm,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    marginBottom: 6,
   },
   description: {
-    fontSize: fontSize.md,
-    lineHeight: 20,
-    marginBottom: spacing.sm,
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 12,
   },
   ratingContainer: {
-    marginBottom: spacing.sm,
+    marginBottom: 12,
   },
   stars: {
     flexDirection: 'row',
   },
   star: {
-    fontSize: fontSize.lg,
-    color: '#fbbf24',
-    marginRight: spacing.xs,
+    marginRight: 2,
+  },
+  locationWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 4,
   },
   location: {
-    fontSize: fontSize.sm,
-    marginBottom: spacing.sm,
+    fontSize: 13,
   },
   imagesContainer: {
-    marginVertical: spacing.md,
+    marginBottom: 12,
   },
   image: {
-    width: 200,
-    height: 150,
-    borderRadius: borderRadius.md,
-    marginRight: spacing.md,
+    width: 240,
+    height: 160,
+    borderRadius: 12,
+    marginRight: 12,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: spacing.sm,
+    marginBottom: 8,
+    gap: 8,
   },
   tag: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.full,
-    marginRight: spacing.sm,
-    marginBottom: spacing.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
   },
   tagText: {
-    fontSize: fontSize.sm,
+    fontSize: 12,
+    fontWeight: '500',
   },
   actions: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    borderTopWidth: 1,
-    paddingTop: spacing.md,
+    justifyContent: 'space-between',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    marginTop: 8,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-  },
-  actionIcon: {
-    fontSize: fontSize.lg,
-  },
-  actionIconActive: {
-    transform: [{ scale: 1.2 }],
+    justifyContent: 'center',
+    flex: 1,
+    gap: 6,
   },
   actionText: {
-    fontSize: fontSize.sm,
+    fontSize: 13,
+    fontWeight: '500',
   },
 });
