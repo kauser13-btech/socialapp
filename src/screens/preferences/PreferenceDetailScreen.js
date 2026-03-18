@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Loading } from '../../components/ui';
 import PreferenceCard from '../../components/preferences/PreferenceCard';
 import CommentSection from '../../components/comments/CommentSection';
-import { preferencesAPI } from '../../lib/api';
+import { preferencesAPI, authAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, fontSize, fontWeight } from '../../constants/styles';
 
@@ -20,7 +19,10 @@ export default function PreferenceDetailScreen({ route }) {
   useEffect(() => {
     if (!id) { setError('Invalid preference ID'); setLoading(false); return; }
     loadPreference();
-    AsyncStorage.getItem('user_data').then((data) => { if (data) setCurrentUser(JSON.parse(data)); }).catch(console.error);
+    authAPI.me().then((data) => {
+      console.log('data', data.data);
+      if (data) setCurrentUser(data.data.user || data.data);
+    }).catch(console.error);
   }, [id]);
 
   const loadPreference = async () => {
