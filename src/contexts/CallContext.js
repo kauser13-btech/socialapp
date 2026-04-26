@@ -180,6 +180,23 @@ export function CallProvider({ children }) {
       } catch (err) {
         console.error('CallContext: Service initialization error:', err);
       }
+
+      // On Android, if the app was cold-started by tapping the "Answer" action
+      // button on the incoming-call notification, NotificationService stores the
+      // caller data. Flag it here so handleIncomingCall auto-answers when the
+      // socket offer arrives.
+      if (Platform.OS === 'android') {
+        try {
+          const { default: NotificationService } = await import('../services/NotificationService');
+          const answerData = NotificationService.getPendingAnswerData();
+          if (answerData) {
+            console.log('CallContext: Cold-start answer detected from notification', answerData);
+            answeredViaCallKeepRef.current = true;
+          }
+        } catch (err) {
+          console.log('CallContext: Could not read pending answer data', err);
+        }
+      }
     };
     initServices();
 

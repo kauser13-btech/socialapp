@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
-import { 
-  View, 
-  ScrollView, 
-  StyleSheet, 
-  Alert, 
-  Text, 
-  TouchableOpacity, 
-  Image, 
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Alert,
+  Text,
+  TouchableOpacity,
+  Image,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  PermissionsAndroid,
 } from 'react-native';
+import Geolocation from '@react-native-community/geolocation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input, Textarea } from '../../components/ui';
 import VoiceInput from '../../components/voice/VoiceInput';
@@ -22,14 +24,16 @@ import Icon from 'react-native-vector-icons/Ionicons';
 export default function PreferenceCreateScreen({ navigation }) {
   const { colors, isDark } = useTheme();
   
-  const [formData, setFormData] = useState({ 
-    title: '', 
-    description: '', 
-    category_id: '', 
-    location: '', 
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    category_id: '',
+    location: '',
+    latitude: null,
+    longitude: null,
     rating: 0, // Default 0 to encourage user to set it
-    price_range: '', 
-    tags: '' 
+    price_range: '',
+    tags: ''
   });
   
   const [categories, setCategories] = useState([]);
@@ -63,10 +67,11 @@ export default function PreferenceCreateScreen({ navigation }) {
   const handleVoiceProcessed = (data) => {
     setFormData(prev => ({
       ...prev,
-      title: data.title || prev.title,
+      title:       data.title       || prev.title,
       description: data.description || prev.description,
       category_id: data.category_id || prev.category_id,
-      rating: data.rating || prev.rating,
+      rating:      data.rating      || prev.rating,
+      location:    data.location    || prev.location,
       tags: data.tags && Array.isArray(data.tags) ? data.tags.join(', ') : prev.tags,
     }));
     setShowVoice(false);
@@ -118,6 +123,50 @@ export default function PreferenceCreateScreen({ navigation }) {
   };
 
   const removeImage = (imageId) => setImages(prev => prev.filter(img => img.id !== imageId));
+
+  const resolveLocationLabel = async (coords) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json`,
+        { headers: { 'Accept-Language': 'en' } }
+      );
+      const json = await res.json();
+      const addr = json.address || {};
+      const label = addr.city || addr.town || addr.village || addr.county || addr.state || 'Unknown location';
+      const country = addr.country_code ? addr.country_code.toUpperCase() : '';
+      return country ? `${label}, ${country}` : label;
+    } catch {
+      return `${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`;
+    }
+  };
+
+  const detectLocation = async () => {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      );
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        Alert.alert('Permission Denied', 'Location permission is required to detect your location.');
+        return;
+      }
+    }
+    setFormData(prev => ({ ...prev, location: 'Detecting…' }));
+    const onSuccess = async ({ coords }) => {
+      const label = await resolveLocationLabel(coords);
+      setFormData(prev => ({
+        ...prev,
+        location: label,
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      }));
+    };
+    const onError = () => {
+      setFormData(prev => ({ ...prev, location: '' }));
+      Alert.alert('Location Error', 'Could not detect your location. Please enter it manually.');
+    };
+    const options = { enableHighAccuracy: false, timeout: 10000 };
+    Geolocation.getCurrentPosition(onSuccess, onError, options);
+  };
 
   const handleSubmit = async () => {
     if (!formData.title || !formData.category_id) {
@@ -311,13 +360,24 @@ export default function PreferenceCreateScreen({ navigation }) {
               )}
             </View>
 
-            {/* Tags & Location */}
-            <Input 
-              label="Location" 
-              placeholder="e.g., Downtown, NYC" 
-              value={formData.location} 
-              onChangeText={(t) => setFormData({ ...formData, location: t })} 
-            />
+            {/* Location */}
+            <View style={styles.locationRow}>
+              <View style={styles.locationInput}>
+                <Input
+                  label="Location"
+                  placeholder="e.g., Downtown, NYC"
+                  value={formData.location}
+                  onChangeText={(t) => setFormData({ ...formData, location: t })}
+                />
+              </View>
+              <TouchableOpacity
+                style={[styles.locateBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
+                onPress={detectLocation}
+                activeOpacity={0.7}
+              >
+                <Icon name="navigate" size={20} color={colors.primary} />
+              </TouchableOpacity>
+            </View>
             <Input 
               label="Tags" 
               placeholder="cozy, wifi, outdoor (comma separated)" 
@@ -460,9 +520,28 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   
+  /* Location row */
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+  },
+  locationInput: {
+    flex: 1,
+  },
+  locateBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+
   /* Fields & Pickers */
-  fieldContainer: { 
-    marginBottom: 20 
+  fieldContainer: {
+    marginBottom: 20
   },
   pickerButton: { 
     flexDirection: 'row', 

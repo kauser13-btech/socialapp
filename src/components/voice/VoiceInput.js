@@ -1,320 +1,261 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, Platform, PermissionsAndroid } from 'react-native';
-import Button from '../ui/Button';
-import Card from '../ui/Card';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity,
+  Platform, PermissionsAndroid, Animated,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { preferencesAPI } from '../../lib/api';
-import { colors, spacing, fontSize, borderRadius } from '../../constants/styles';
 
-// Safely import Voice module
 let Voice = null;
 try {
   Voice = require('@react-native-voice/voice').default;
-} catch (error) {
-  console.warn('Voice module not available:', error);
+} catch {
+  // not available on this device
 }
 
-const VoiceInput = ({ onProcessed }) => {
-  const [isListening, setIsListening] = useState(false);
+export default function VoiceInput({ onProcessed, colors }) {
+  const [state, setState] = useState('idle'); // idle | listening | processing | done
   const [transcript, setTranscript] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
-  const [isAvailable, setIsAvailable] = useState(false);
+  const transcriptRef = useRef('');
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const pulseLoop = useRef(null);
+
+  const isAvailable = Boolean(Voice);
 
   useEffect(() => {
-    // Check if Voice is available
-    const checkVoiceAvailability = async () => {
-      if (!Voice) {
-        setIsAvailable(false);
-        return;
-      }
-
-      try {
-        const available = await Voice.isAvailable();
-        setIsAvailable(available);
-
-        if (available) {
-          Voice.onSpeechStart = onSpeechStart;
-          Voice.onSpeechEnd = onSpeechEnd;
-          Voice.onSpeechResults = onSpeechResults;
-          Voice.onSpeechError = onSpeechError;
-        }
-      } catch (e) {
-        console.log('Voice not available:', e);
-        setIsAvailable(false);
+    if (!Voice) return;
+    Voice.onSpeechResults = (e) => {
+      if (e.value?.length > 0) {
+        transcriptRef.current = e.value[0];
+        setTranscript(e.value[0]);
       }
     };
-
-    checkVoiceAvailability();
-
-    return () => {
-      if (Voice && isAvailable) {
-        Voice.destroy().then(Voice.removeAllListeners).catch(console.error);
-      }
+    Voice.onSpeechEnd = () => {
+      setState(prev => {
+        if (prev === 'listening') processTranscript(transcriptRef.current);
+        return prev;
+      });
     };
+    Voice.onSpeechError = (e) => {
+      setError(e.error?.message || 'Recognition error');
+      setState('idle');
+      stopPulse();
+    };
+    return () => { Voice?.destroy().then(() => Voice?.removeAllListeners()).catch(() => {}); };
   }, []);
 
-  const onSpeechStart = () => {
+  // ── Pulse animation while recording ──────────────────────────────────────
+  const startPulse = () => {
+    pulseLoop.current = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.25, duration: 600, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1,    duration: 600, useNativeDriver: true }),
+      ])
+    );
+    pulseLoop.current.start();
+  };
+
+  const stopPulse = () => {
+    pulseLoop.current?.stop();
+    pulseAnim.setValue(1);
+  };
+
+  // ── Permission ────────────────────────────────────────────────────────────
+  const requestPermission = async () => {
+    if (Platform.OS !== 'android') return true;
+    const result = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.RECORD_AUDIO
+    );
+    return result === PermissionsAndroid.RESULTS.GRANTED;
+  };
+
+  // ── Main tap handler ──────────────────────────────────────────────────────
+  const handleTap = async () => {
+    if (state === 'processing') return;
+
+    if (state === 'listening') {
+      await stopRecording();
+    } else {
+      await startRecording();
+    }
+  };
+
+  const startRecording = async () => {
     setError('');
-  };
-
-  const onSpeechEnd = () => {
-    setIsListening(false);
-  };
-
-  const onSpeechResults = (e) => {
-    if (e.value && e.value.length > 0) {
-      setTranscript(e.value[0]);
-    }
-  };
-
-  const onSpeechError = (e) => {
-    console.error('Speech error:', e);
-    setError(e.error?.message || 'Speech recognition error');
-    setIsListening(false);
-  };
-
-  const requestPermissions = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.RECORD_AUDIO,
-          {
-            title: 'Microphone Permission',
-            message: 'This app needs access to your microphone to record audio for voice input.',
-            buttonNeutral: 'Ask Me Later',
-            buttonNegative: 'Cancel',
-            buttonPositive: 'OK',
-          }
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.error('Permission error:', err);
-        return false;
-      }
-    }
-    // iOS permissions are handled automatically via Info.plist
-    return true;
-  };
-
-  const startListening = async () => {
-    if (!Voice) {
-      setError('Voice recognition is not available');
-      return;
-    }
-
-    // Request permissions first
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) {
-      setError('Microphone permission is required for voice input');
-      Alert.alert(
-        'Permission Required',
-        'Please grant microphone permission in your device settings to use voice input.'
-      );
-      return;
-    }
-
+    setTranscript('');
+    const ok = await requestPermission();
+    if (!ok) { setError('Microphone permission required.'); return; }
     try {
-      setTranscript('');
-      setError('');
-      setIsListening(true);
+      setState('listening');
+      startPulse();
       await Voice.start('en-US');
-    } catch (e) {
-      console.error('Error starting voice:', e);
-      setError('Failed to start voice recognition');
-      setIsListening(false);
+    } catch {
+      setState('idle');
+      stopPulse();
+      setError('Could not start recording.');
     }
   };
 
-  const stopListening = async () => {
-    if (!Voice) return;
-
-    try {
-      await Voice.stop();
-      setIsListening(false);
-    } catch (e) {
-      console.error('Error stopping voice:', e);
-      setIsListening(false);
-    }
+  const stopRecording = async () => {
+    try { await Voice.stop(); } catch { /* ignore */ }
+    stopPulse();
+    processTranscript(transcriptRef.current);
   };
 
-  const processTranscript = async () => {
-    if (!transcript.trim()) return;
-
-    setIsProcessing(true);
+  const processTranscript = async (text) => {
+    if (!text?.trim()) { setState('idle'); return; }
+    setState('processing');
     try {
-      const response = await preferencesAPI.parseVoice(transcript);
-
-      if (response.success && onProcessed) {
-        onProcessed(response.data);
-        setTranscript('');
-        Alert.alert('Success', 'Voice input processed successfully!');
+      const response = await preferencesAPI.parseVoice(text);
+      if (response.success) {
+        setState('done');
+        onProcessed?.(response.data);
       } else {
-        Alert.alert('Error', response.message || 'Failed to process voice input');
+        setError('Could not parse voice input.');
+        setState('idle');
       }
-    } catch (error) {
-      console.error('Error processing voice input:', error);
-      Alert.alert('Error', error.message || 'Failed to process voice input');
-    } finally {
-      setIsProcessing(false);
+    } catch {
+      setError('Processing failed. Please try again.');
+      setState('idle');
     }
   };
+
+  // ── Button appearance per state ───────────────────────────────────────────
+  const BTN = {
+    idle:       { icon: 'mic',          bg: '#4f6ef7', label: 'Tap to speak'   },
+    listening:  { icon: 'stop',         bg: '#ef4444', label: 'Tap to finish'  },
+    processing: { icon: 'hourglass',    bg: '#f59e0b', label: 'Processing…'    },
+    done:       { icon: 'checkmark',    bg: '#10b981', label: 'Done!'          },
+  };
+  const btn = BTN[state];
+  const accentColor = colors?.primary || '#4f6ef7';
 
   if (!isAvailable) {
     return (
-      <View style={styles.container}>
-        <Card style={styles.errorCard}>
-          <Text style={styles.errorText}>
-            Voice input is not available on this device. Please use a physical device to enable voice recognition.
-          </Text>
-        </Card>
+      <View style={styles.unavailable}>
+        <Icon name="mic-off-outline" size={20} color="#94a3b8" />
+        <Text style={styles.unavailableText}>Voice not available on this device</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.buttonContainer}>
-        {!isListening ? (
-          <Button
-            onPress={startListening}
-            variant="primary"
-            disabled={isProcessing}
-          >
-            🎤 Start Voice Input
-          </Button>
-        ) : (
-          <Button
-            onPress={stopListening}
-            variant="danger"
-          >
-            ⏹ Stop Recording
-          </Button>
-        )}
-
-        {transcript && !isListening && (
-          <Button
-            onPress={processTranscript}
-            disabled={isProcessing}
-            loading={isProcessing}
-            style={styles.processButton}
-          >
-            {isProcessing ? 'Processing...' : '✨ Process with AI'}
-          </Button>
-        )}
+      {/* Single big mic button */}
+      <View style={styles.btnWrap}>
+        <Animated.View style={[styles.pulse, { transform: [{ scale: pulseAnim }], backgroundColor: btn.bg + '22' }]} />
+        <TouchableOpacity
+          style={[styles.micBtn, { backgroundColor: btn.bg }]}
+          onPress={handleTap}
+          activeOpacity={0.85}
+          disabled={state === 'processing'}
+        >
+          <Icon name={btn.icon} size={32} color="#fff" />
+        </TouchableOpacity>
       </View>
 
-      {transcript && (
-        <Card style={styles.transcriptCard}>
-          <Text style={styles.transcriptLabel}>
-            {isListening ? 'Listening...' : 'Transcript:'}
-          </Text>
-          <Text style={styles.transcriptText}>{transcript}</Text>
-        </Card>
-      )}
+      {/* State label */}
+      <Text style={[styles.label, { color: colors?.textSecondary || '#64748b' }]}>{btn.label}</Text>
 
-      {error && (
-        <Card style={styles.errorCard}>
-          <Text style={styles.errorText}>{error}</Text>
-        </Card>
-      )}
-
-      {isListening && (
-        <View style={styles.listeningIndicator}>
-          <View style={styles.recordingDot} />
-          <Text style={styles.listeningText}>
-            Recording... Speak naturally about your preference
+      {/* Live transcript */}
+      {!!transcript && (
+        <View style={[styles.transcriptBox, { borderColor: accentColor + '40', backgroundColor: accentColor + '0c' }]}>
+          <Text style={[styles.transcriptText, { color: colors?.textPrimary || '#1e293b' }]}>
+            "{transcript}"
           </Text>
         </View>
       )}
-
-      {!isListening && !transcript && (
-        <Card style={styles.infoCard}>
-          <Text style={styles.infoTitle}>How to use voice input:</Text>
-          <Text style={styles.infoItem}>
-            • Click "Start Voice Input" and speak clearly
-          </Text>
-          <Text style={styles.infoItem}>
-            • Describe your preference naturally (e.g., "I love Italian coffee from Lavazza")
-          </Text>
-          <Text style={styles.infoItem}>• Click "Stop Recording" when finished</Text>
-          <Text style={styles.infoItem}>
-            • Click "Process with AI" to auto-fill the form
-          </Text>
-        </Card>
+      {!transcript && state === 'listening' && (
+        <Text style={[styles.hint, { color: colors?.textSecondary || '#64748b' }]}>
+          Speak now… tap stop when done
+        </Text>
       )}
+      {!transcript && state === 'idle' && (
+        <Text style={[styles.hint, { color: colors?.textSecondary || '#64748b' }]}>
+          e.g. "Amazing ramen in Shibuya, solid 4 out of 5"
+        </Text>
+      )}
+
+      {/* Error */}
+      {error ? (
+        <View style={styles.errorRow}>
+          <Icon name="alert-circle-outline" size={14} color="#ef4444" />
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: spacing.md,
+    alignItems: 'center',
+    paddingVertical: 8,
+    gap: 12,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.md,
+  btnWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  processButton: {
-    flex: 1,
+  pulse: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
-  transcriptCard: {
-    backgroundColor: colors.gray50,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+  micBtn: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  transcriptLabel: {
-    fontSize: fontSize.sm,
+  label: {
+    fontSize: 14,
     fontWeight: '600',
-    color: colors.gray700,
-    marginBottom: spacing.sm,
+  },
+  hint: {
+    fontSize: 13,
+    textAlign: 'center',
+    paddingHorizontal: 24,
+    fontStyle: 'italic',
+    lineHeight: 18,
+  },
+  transcriptBox: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginHorizontal: 8,
   },
   transcriptText: {
-    fontSize: fontSize.md,
-    color: colors.gray800,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center',
   },
-  errorCard: {
-    backgroundColor: '#fee2e2',
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    borderColor: colors.error,
-  },
-  errorText: {
-    fontSize: fontSize.sm,
-    color: colors.error,
-  },
-  listeningIndicator: {
+  errorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    gap: 6,
   },
-  recordingDot: {
-    width: 8,
-    height: 8,
-    backgroundColor: colors.error,
-    borderRadius: 4,
+  errorText: {
+    fontSize: 13,
+    color: '#ef4444',
   },
-  listeningText: {
-    fontSize: fontSize.sm,
-    color: colors.gray600,
+  unavailable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
   },
-  infoCard: {
-    backgroundColor: '#dbeafe',
-    padding: spacing.md,
-    borderColor: '#3b82f6',
-  },
-  infoTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: '600',
-    color: '#1e40af',
-    marginBottom: spacing.sm,
-  },
-  infoItem: {
-    fontSize: fontSize.sm,
-    color: '#1e3a8a',
-    marginBottom: spacing.xs,
+  unavailableText: {
+    fontSize: 13,
+    color: '#94a3b8',
   },
 });
-
-export default VoiceInput;

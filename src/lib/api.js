@@ -54,11 +54,10 @@ class APIClient {
       const data = await response.json();
 
       if (!response.ok) {
-        throw {
+        throw Object.assign(new Error(data.message || 'An error occurred'), {
           status: response.status,
-          message: data.message || 'An error occurred',
           errors: data.errors || {},
-        };
+        });
       }
 
       return data;
@@ -99,7 +98,7 @@ class APIClient {
   }
 
   // Upload file (React Native version)
-  async upload(endpoint, file, fieldName = 'file') {
+  async upload(endpoint, file, fieldName = 'file', extraFields = {}) {
     const token = await this.getToken();
     const formData = new FormData();
 
@@ -108,6 +107,11 @@ class APIClient {
       uri: file.uri,
       type: file.type || 'image/jpeg',
       name: file.fileName || 'image.jpg',
+    });
+
+    // Append any additional fields (e.g. caption)
+    Object.entries(extraFields).forEach(([key, value]) => {
+      if (value != null) formData.append(key, String(value));
     });
 
     const headers = {};
@@ -124,21 +128,19 @@ class APIClient {
     const contentType = response.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {
       // Server returned HTML (error page) instead of JSON
-      throw {
+      throw Object.assign(new Error(`Server error ${response.status}: ${response.statusText}`), {
         status: response.status,
-        message: `Server error ${response.status}: ${response.statusText}`,
         errors: {},
-      };
+      });
     }
 
     const data = await response.json();
 
     if (!response.ok) {
-      throw {
+      throw Object.assign(new Error(data.message || 'Upload failed'), {
         status: response.status,
-        message: data.message || 'Upload failed',
         errors: data.errors || {},
-      };
+      });
     }
 
     return data;
@@ -184,7 +186,7 @@ export const preferencesAPI = {
   delete: (id) => api.delete(`/preferences/${id}`),
   uploadImage: (id, file) => api.upload(`/preferences/${id}/images`, file, 'image'),
   deleteImage: (id, imageId) => api.delete(`/preferences/${id}/images/${imageId}`),
-  like: (id) => api.post(`/preferences/${id}/like`),
+  like: (id, reactionType = 'like') => api.post(`/preferences/${id}/like`, { reaction_type: reactionType }),
   unlike: (id) => api.delete(`/preferences/${id}/unlike`),
   save: (id) => api.post(`/preferences/${id}/save`),
   unsave: (id) => api.delete(`/preferences/${id}/unsave`),
@@ -197,8 +199,13 @@ export const preferencesAPI = {
 export const feedAPI = {
   getFeed: () => api.get('/feed'),
   getMyFeed: () => api.get('/feed/my'),
+  getFollowingFeed: () => api.get('/feed/following'),
   getTrending: () => api.get('/feed/trending'),
-  getNearby: (location) => api.get(`/feed/nearby?location=${location}`),
+  getNearby:   (lat, lng, radius = 20) => api.get(`/feed/nearby?latitude=${lat}&longitude=${lng}&radius=${radius}`),
+  getTopRated: (minRating = 4, category = null) => {
+    const cat = category ? `&category=${category}` : '';
+    return api.get(`/feed/top-rated?min_rating=${minRating}${cat}`);
+  },
   getDiscover: () => api.get('/feed/discover'),
 };
 
@@ -215,6 +222,7 @@ export const commentsAPI = {
 // Friends API
 export const friendsAPI = {
   list: () => api.get('/friends'),
+  getBirthdays: () => api.get(`/friends/birthdays?timezone=${encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)}`),
   requests: () => api.get('/friends/requests'),
   sentRequests: () => api.get('/friends/sent-requests'),
   sendRequest: (userId) => api.post('/friends/request', { user_id: userId }),
@@ -264,9 +272,69 @@ export const messagesAPI = {
   getConversations: () => api.get('/messages/conversations'),
   getMessages: (userId) => api.get(`/messages/${userId}`),
   sendMessage: (data) => api.post('/messages', data),
+  sharePreference: (receiverId, preferenceId, content) =>
+    api.post('/messages', { receiver_id: receiverId, shared_preference_id: preferenceId, content: content || null }),
+  sendImageMessage: async (receiverId, fileUri, mimeType = 'image/jpeg') => {
+    const token = await AsyncStorage.getItem('auth_token');
+    const formData = new FormData();
+    formData.append('receiver_id', String(receiverId));
+    const ext = fileUri.split('.').pop()?.toLowerCase() || 'jpg';
+    formData.append('image', { uri: fileUri, type: mimeType, name: `img_${Date.now()}.${ext}` });
+
+    const headers = { Accept: 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${apiBaseUrl}/messages/image`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+
+    let data;
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      data = await response.json();
+    } else {
+      const text = await response.text();
+      console.error('sendImageMessage non-JSON response:', response.status, text.slice(0, 500));
+      throw new Error(`Server error ${response.status}`);
+    }
+
+    if (!response.ok) throw data;
+    return data;
+  },
+  getImageUrl: async (messageId) => {
+    const token = await AsyncStorage.getItem('auth_token');
+    return `${apiBaseUrl}/messages/image/${messageId}?token=${token}`;
+  },
+  sendVoiceMessage: async (receiverId, fileUri, duration) => {
+    const token = await AsyncStorage.getItem('auth_token');
+    const formData = new FormData();
+    formData.append('receiver_id', String(receiverId));
+    if (duration) formData.append('voice_duration', String(Math.round(duration)));
+    formData.append('voice', { uri: fileUri, type: 'audio/m4a', name: `voice_${Date.now()}.m4a` });
+
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const response = await fetch(`${apiBaseUrl}/messages/voice`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    const data = await response.json();
+    if (!response.ok) throw data;
+    return data;
+  },
+  getVoiceUrl: async (messageId) => {
+    const token = await api.getToken();
+    return `${apiBaseUrl}/messages/voice/${messageId}?token=${token}`;
+  },
   markAsRead: (userId) => api.post(`/messages/${userId}/read`),
   deleteMessage: (id) => api.delete(`/messages/${id}`),
   getUnreadCount: () => api.get('/messages/unread-count'),
+  reactToMessage: (id, emoji) => api.post(`/messages/${id}/react`, { emoji }),
+  unreactToMessage: (id) => api.delete(`/messages/${id}/react`),
 };
 
 // Settings API
@@ -280,13 +348,34 @@ export const settingsAPI = {
   deleteAccount: (password) => api.delete('/settings/account', { password }),
 };
 
+// Collections API
+export const collectionsAPI = {
+  list: () => api.get('/collections'),
+  create: (data) => api.post('/collections', data),
+  get: (id) => api.get(`/collections/${id}`),
+  update: (id, data) => api.put(`/collections/${id}`, data),
+  delete: (id) => api.delete(`/collections/${id}`),
+  addPreference: (id, preferenceId) => api.post(`/collections/${id}/preferences`, { preference_id: preferenceId }),
+  removePreference: (id, preferenceId) => api.delete(`/collections/${id}/preferences/${preferenceId}`),
+};
+
 // Analytics API
+export const storiesAPI = {
+  list:    () => api.get('/stories'),
+  create:  (file, caption) => api.upload('/stories', file, 'image', { caption }),
+  view:    (id) => api.post(`/stories/${id}/view`),
+  viewers: (id) => api.get(`/stories/${id}/viewers`),
+  delete:  (id) => api.delete(`/stories/${id}`),
+};
+
 export const analyticsAPI = {
   getUserStats: () => api.get('/analytics/stats'),
   getPreferenceStats: (id) => api.get(`/analytics/preferences/${id}`),
   getEngagementStats: () => api.get('/analytics/engagement'),
   getTopPreferences: () => api.get('/analytics/top-preferences'),
   getCategoryStats: () => api.get('/analytics/categories'),
+  getCompatibility: (userId) => api.get(`/analytics/compatibility/${userId}`),
+  getBadges: (userId = null) => api.get('/analytics/badges' + (userId ? `?user_id=${userId}` : '')),
 };
 
 export default api;

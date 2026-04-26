@@ -7,25 +7,26 @@ import { SOCKET_URL } from '@env';
 
 const SocketContext = createContext(null);
 
-const socketUrl = SOCKET_URL || 'https://socket.drivingit.com';
-
 export function SocketProvider({ children }) {
   const { user, isAuthenticated } = useAuth();
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const socketRef = useRef(null);
 
   // Play notification sound/vibration
   const playNotificationSound = useCallback(() => {
-    // Vibrate for haptic feedback
     if (Platform.OS === 'ios') {
-      // iOS short vibration
       Vibration.vibrate(100);
     } else {
-      // Android pattern: wait 0ms, vibrate 100ms, wait 50ms, vibrate 100ms
       Vibration.vibrate([0, 100, 50, 100]);
     }
+  }, []);
+
+  // Reset unread count (call when user opens Messages tab)
+  const resetUnreadMessageCount = useCallback(() => {
+    setUnreadMessageCount(0);
   }, []);
 
   // Connect to socket when authenticated
@@ -60,7 +61,6 @@ export function SocketProvider({ children }) {
       newSocket.on('connect', () => {
         console.log('Socket connected:', newSocket.id);
         setIsConnected(true);
-        // Request online status of friends
         newSocket.emit('presence:get-online-friends');
       });
 
@@ -70,7 +70,6 @@ export function SocketProvider({ children }) {
         setOnlineUsers(new Set());
       });
 
-      // Track online/offline presence
       newSocket.on('user:online', ({ userId }) => {
         setOnlineUsers(prev => new Set([...prev, userId]));
       });
@@ -92,10 +91,10 @@ export function SocketProvider({ children }) {
         setIsConnected(false);
       });
 
-      // Global message listener for notifications
+      // Increment unread count on every incoming message
       newSocket.on('message:receive', () => {
-        // Play notification sound for incoming messages
         playNotificationSound();
+        setUnreadMessageCount(prev => prev + 1);
       });
 
       socketRef.current = newSocket;
@@ -112,44 +111,49 @@ export function SocketProvider({ children }) {
     };
   }, [isAuthenticated, user?.id, playNotificationSound]);
 
-  // Send a message via socket
   const sendMessage = useCallback((receiverId, message) => {
     if (socketRef.current && isConnected) {
       socketRef.current.emit('message:send', { receiverId, message });
     }
   }, [isConnected]);
 
-  // Start typing indicator
   const startTyping = useCallback((receiverId) => {
     if (socketRef.current && isConnected) {
       socketRef.current.emit('typing:start', { receiverId });
     }
   }, [isConnected]);
 
-  // Stop typing indicator
   const stopTyping = useCallback((receiverId) => {
     if (socketRef.current && isConnected) {
       socketRef.current.emit('typing:stop', { receiverId });
     }
   }, [isConnected]);
 
-  // Mark messages as read
   const markAsRead = useCallback((senderId) => {
     if (socketRef.current && isConnected) {
       socketRef.current.emit('message:read', { senderId });
     }
   }, [isConnected]);
 
+  const onMessageRead = useCallback((callback) => {
+    if (!socketRef.current) return () => {};
+    socketRef.current.on('message:read', callback);
+    return () => socketRef.current?.off('message:read', callback);
+  }, []);
+
   const value = useMemo(() => ({
     socket,
     isConnected,
     onlineUsers,
+    unreadMessageCount,
+    resetUnreadMessageCount,
     sendMessage,
     startTyping,
     stopTyping,
     markAsRead,
+    onMessageRead,
     playNotificationSound,
-  }), [socket, isConnected, onlineUsers, sendMessage, startTyping, stopTyping, markAsRead, playNotificationSound]);
+  }), [socket, isConnected, onlineUsers, unreadMessageCount, resetUnreadMessageCount, sendMessage, startTyping, stopTyping, markAsRead, onMessageRead, playNotificationSound]);
 
   return (
     <SocketContext.Provider value={value}>

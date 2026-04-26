@@ -1,11 +1,13 @@
 import React from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useSocket } from '../contexts/SocketContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Loading from '../components/ui/Loading';
 
 // Auth Screens
@@ -17,6 +19,7 @@ import FeedScreen from '../screens/feed/FeedScreen';
 import DiscoverScreen from '../screens/discover/DiscoverScreen';
 import MessagesScreen from '../screens/messages/MessagesScreen';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import SavedScreen from '../screens/saved/SavedScreen';
 
 // Other Screens
 import PreferenceCreateScreen from '../screens/preferences/PreferenceCreateScreen';
@@ -29,19 +32,26 @@ import SettingsScreen from '../screens/settings/SettingsScreen';
 import EditProfileScreen from '../screens/settings/EditProfileScreen';
 import CategoryScreen from '../screens/categories/CategoryScreen';
 import ChatScreen from '../screens/messages/ChatScreen';
+import CollectionsScreen from '../screens/collections/CollectionsScreen';
+import CollectionDetailScreen from '../screens/collections/CollectionDetailScreen';
+import MapScreen from '../screens/map/MapScreen';
+import TopRatedScreen from '../screens/toprated/TopRatedScreen';
+import BadgesScreen from '../screens/badges/BadgesScreen';
+import StoryViewerScreen from '../screens/stories/StoryViewerScreen';
+import CreateStoryScreen from '../screens/stories/CreateStoryScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 // Tab definition: name, label, Ionicons base name, screen component
 const TABS = [
-  { name: 'FeedTab',     label: 'Home',     icon: 'home',       component: FeedScreen },
-  { name: 'DiscoverTab', label: 'Discover', icon: 'compass',    component: DiscoverScreen },
-  { name: 'MessagesTab', label: 'Messages', icon: 'chatbubble', component: MessagesScreen },
-  { name: 'ProfileTab',  label: 'Profile',  icon: 'person',     component: ProfileScreen },
+  { name: 'FeedTab',     label: 'Home',     icon: 'home',        component: FeedScreen },
+  { name: 'SavedTab',    label: 'Saved',    icon: 'bookmark',    component: SavedScreen },
+  { name: 'DiscoverTab', label: 'Discover', icon: 'compass',     component: DiscoverScreen },
+  { name: 'MessagesTab', label: 'Messages', icon: 'chatbubble',  component: MessagesScreen },
 ];
 
-function TabIcon({ icon, focused, color }) {
+function TabIcon({ icon, focused, color, badge }) {
   return (
     <View style={tabStyles.iconWrap}>
       <Ionicons
@@ -49,6 +59,11 @@ function TabIcon({ icon, focused, color }) {
         size={24}
         color={color}
       />
+      {badge > 0 && (
+        <View style={tabStyles.badge}>
+          <Text style={tabStyles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
+        </View>
+      )}
       {focused && <View style={[tabStyles.activeDot, { backgroundColor: color }]} />}
     </View>
   );
@@ -56,6 +71,9 @@ function TabIcon({ icon, focused, color }) {
 
 function TabNavigator() {
   const { colors } = useTheme();
+  const { unreadMessageCount, resetUnreadMessageCount } = useSocket();
+  const insets = useSafeAreaInsets();
+  const bottomInset = insets.bottom;
 
   return (
     <Tab.Navigator
@@ -73,9 +91,9 @@ function TabNavigator() {
           backgroundColor: colors.tabBar,
           borderTopColor: colors.tabBarBorder,
           borderTopWidth: StyleSheet.hairlineWidth,
-          height: Platform.OS === 'ios' ? 82 : 64,
+          height: 56 + bottomInset,
           paddingTop: 8,
-          paddingBottom: Platform.OS === 'ios' ? 26 : 8,
+          paddingBottom: bottomInset > 0 ? bottomInset : 8,
         },
         tabBarIconStyle: {
           marginBottom: 2,
@@ -87,10 +105,18 @@ function TabNavigator() {
           key={name}
           name={name}
           component={component}
+          listeners={name === 'MessagesTab' ? {
+            tabPress: () => resetUnreadMessageCount(),
+          } : undefined}
           options={{
             tabBarLabel: label,
             tabBarIcon: ({ focused, color }) => (
-              <TabIcon icon={icon} focused={focused} color={color} />
+              <TabIcon
+                icon={icon}
+                focused={focused}
+                color={color}
+                badge={name === 'MessagesTab' ? unreadMessageCount : 0}
+              />
             ),
           }}
         />
@@ -109,6 +135,24 @@ const tabStyles = StyleSheet.create({
     height: 4,
     borderRadius: 2,
     marginTop: 3,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -10,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    lineHeight: 12,
   },
 });
 
@@ -143,6 +187,8 @@ function MainStack() {
       <Stack.Screen name="PreferenceCreate" component={PreferenceCreateScreen} options={{ title: 'Create Preference', ...headerStyle }} />
       <Stack.Screen name="PreferenceDetail" component={PreferenceDetailScreen} options={{ title: 'Preference', ...headerStyle }} />
       <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile', ...headerStyle }} />
+      <Stack.Screen name="Collections" component={CollectionsScreen} options={{ title: 'Collections', ...headerStyle }} />
+      <Stack.Screen name="CollectionDetail" component={CollectionDetailScreen} options={{ title: 'Collection', ...headerStyle }} />
       <Stack.Screen name="Friends" component={FriendsScreen} options={{ title: 'Friends', ...headerStyle }} />
       <Stack.Screen name="Groups" component={GroupsScreen} options={{ title: 'Groups', ...headerStyle }} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications', ...headerStyle }} />
@@ -150,6 +196,12 @@ function MainStack() {
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile', ...headerStyle }} />
       <Stack.Screen name="Category" component={CategoryScreen} options={{ title: 'Category', ...headerStyle }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat', ...headerStyle }} />
+      <Stack.Screen name="Map" component={MapScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TopRated" component={TopRatedScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Badges" component={BadgesScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="StoryViewer" component={StoryViewerScreen} options={{ headerShown: false, animation: 'fade' }} />
+      <Stack.Screen name="CreateStory" component={CreateStoryScreen} options={{ headerShown: false, presentation: 'modal' }} />
+      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile', ...headerStyle }} />
     </Stack.Navigator>
   );
 }

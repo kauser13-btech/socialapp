@@ -1969,6 +1969,34 @@ PODS:
     - React-RCTFBReactNativeSpec
     - ReactCommon/turbomodule/core
     - SocketRocket
+  - react-native-geolocation (3.4.0):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - react-native-get-random-values (2.0.0):
     - boost
     - DoubleConversion
@@ -2015,6 +2043,65 @@ PODS:
     - React-graphics
     - React-ImageManager
     - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
+  - react-native-maps (1.27.2):
+    - react-native-maps/Maps (= 1.27.2)
+  - react-native-maps/Generated (1.27.2):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
+  - react-native-maps/Maps (1.27.2):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - react-native-maps/Generated
     - React-NativeModulesApple
     - React-RCTFabric
     - React-renderercss
@@ -2674,6 +2761,8 @@ PODS:
     - React-perflogger (= 0.83.1)
     - React-utils (= 0.83.1)
     - SocketRocket
+  - RNAudioRecorderPlayer (3.6.14):
+    - React-Core
   - RNCallKeep (4.3.16):
     - React
   - RNCAsyncStorage (2.2.0):
@@ -2946,8 +3035,10 @@ DEPENDENCIES:
   - React-logger (from `../node_modules/react-native/ReactCommon/logger`)
   - React-Mapbuffer (from `../node_modules/react-native/ReactCommon`)
   - React-microtasksnativemodule (from `../node_modules/react-native/ReactCommon/react/nativemodule/microtasks`)
+  - "react-native-geolocation (from `../node_modules/@react-native-community/geolocation`)"
   - react-native-get-random-values (from `../node_modules/react-native-get-random-values`)
   - react-native-image-picker (from `../node_modules/react-native-image-picker`)
+  - react-native-maps (from `../node_modules/react-native-maps`)
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - "react-native-voice (from `../node_modules/@react-native-voice/voice`)"
   - react-native-webrtc (from `../node_modules/react-native-webrtc`)
@@ -2984,6 +3075,7 @@ DEPENDENCIES:
   - ReactAppDependencyProvider (from `build/generated/ios/ReactAppDependencyProvider`)
   - ReactCodegen (from `build/generated/ios/ReactCodegen`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
+  - RNAudioRecorderPlayer (from `../node_modules/react-native-audio-recorder-player`)
   - RNCallKeep (from `../node_modules/react-native-callkeep`)
   - "RNCAsyncStorage (from `../node_modules/@react-native-async-storage/async-storage`)"
   - "RNCPushNotificationIOS (from `../node_modules/@react-native-community/push-notification-ios`)"
@@ -3101,10 +3193,14 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   React-microtasksnativemodule:
     :path: "../node_modules/react-native/ReactCommon/react/nativemodule/microtasks"
+  react-native-geolocation:
+    :path: "../node_modules/@react-native-community/geolocation"
   react-native-get-random-values:
     :path: "../node_modules/react-native-get-random-values"
   react-native-image-picker:
     :path: "../node_modules/react-native-image-picker"
+  react-native-maps:
+    :path: "../node_modules/react-native-maps"
   react-native-safe-area-context:
     :path: "../node_modules/react-native-safe-area-context"
   react-native-voice:
@@ -3177,6 +3273,8 @@ EXTERNAL SOURCES:
     :path: build/generated/ios/ReactCodegen
   ReactCommon:
     :path: "../node_modules/react-native/ReactCommon"
+  RNAudioRecorderPlayer:
+    :path: "../node_modules/react-native-audio-recorder-player"
   RNCallKeep:
     :path: "../node_modules/react-native-callkeep"
   RNCAsyncStorage:
@@ -3257,8 +3355,10 @@ SPEC CHECKSUMS:
   React-logger: 6ac901f5c7f7321d2be1a40b203bccc2e23411e3
   React-Mapbuffer: 2e0e7cc5b7064eaed9c8b8afc3a87621cb7ef5cd
   React-microtasksnativemodule: dd4d33b251b57e5027c572c6d0b45cbfbcfaa386
+  react-native-geolocation: c43df081568b7568b4d68240a03263037b2eb90f
   react-native-get-random-values: 9856c21cab42a6d8db71dcb35c3059fdaeac2b16
   react-native-image-picker: 43e6cd4231e670030fe09b079d696fa5a634ccfc
+  react-native-maps: 00f50855f1a061186f2923be0709b3f09708ddf7
   react-native-safe-area-context: 0f4986a88ec555aff660503b483d6e4bd6980a9a
   react-native-voice: f5e8eec2278451d0017eb6a30a6ccc726aca34e0
   react-native-webrtc: b5062b745a26c99835efdf0d6c027c9b2ee7ddbc
@@ -3295,6 +3395,7 @@ SPEC CHECKSUMS:
   ReactAppDependencyProvider: bfb12ead469222b022a2024f32aba47ce50de512
   ReactCodegen: 894c9c13d45d134966e464ad5453a6d81f197910
   ReactCommon: 05ad684db7d88e194272ae26baddf6300e30b8b7
+  RNAudioRecorderPlayer: 76b1d9ea2b22bf5ece274c0ff99c341daca42dc4
   RNCallKeep: 94bbe46b807ccf58e9f6ec11bc4d6087323a1954
   RNCAsyncStorage: 302f2fac014fd450046c120567ca364632da682b
   RNCPushNotificationIOS: b9dcb4f28c85f77483c3f86d2fcb1e0f0ab396fa

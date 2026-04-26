@@ -85,8 +85,9 @@ android {
         applicationId "unomi.drivingit"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 8
-        versionName "1.7"
+        versionCode 12
+        versionName "2.2"
+        manifestPlaceholders = [MAPS_API_KEY: project.findProperty("MAPS_API_KEY") ?: ""]
     }
     signingConfigs {
         release {

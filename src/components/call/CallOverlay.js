@@ -126,7 +126,7 @@ export default function CallOverlay() {
                 onPress={answerCall}
               >
                 <Icon
-                  name={isAudioCall ? 'mic' : 'videocam'}
+                  name={isAudioCall ? 'call' : 'videocam'}
                   size={32}
                   color={colors.background}
                 />

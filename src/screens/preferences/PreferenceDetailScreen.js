@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Loading } from '../../components/ui';
 import PreferenceCard from '../../components/preferences/PreferenceCard';
@@ -51,10 +51,16 @@ export default function PreferenceDetailScreen({ route }) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView>
-        <PreferenceCard preference={preference} onUpdate={loadPreference} />
-        <CommentSection preferenceId={id} currentUser={currentUser} />
-      </ScrollView>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+      >
+        <ScrollView keyboardShouldPersistTaps="handled">
+          <PreferenceCard preference={preference} onUpdate={loadPreference} />
+          <CommentSection preferenceId={id} currentUser={currentUser} />
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

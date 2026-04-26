@@ -1,14 +1,28 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Avatar } from '../../components/ui';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { analyticsAPI } from '../../lib/api';
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
   const { colors, isDark } = useTheme();
+  const [earnedBadges, setEarnedBadges] = useState([]);
+  const [totalCount, setTotalCount]     = useState(0);
+
+  useEffect(() => {
+    analyticsAPI.getBadges()
+      .then(r => {
+        if (r.success) {
+          setEarnedBadges((r.data.badges || []).filter(b => b.earned).slice(0, 5));
+          setTotalCount(r.data.total_count ?? 0);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const menuItems = [
     { title: 'Friends', icon: 'people-outline', screen: 'Friends', color: colors.primary },
@@ -49,6 +63,43 @@ export default function ProfileScreen({ navigation }) {
             <Text style={[styles.editProfileText, { color: colors.textPrimary }]}>Edit Profile</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Badges Section */}
+        <TouchableOpacity
+          style={[styles.badgesCard, { backgroundColor: isDark ? colors.cardBackground : '#fff', borderColor: colors.border }]}
+          onPress={() => navigation.navigate('Badges')}
+          activeOpacity={0.8}
+        >
+          <View style={styles.badgesHeader}>
+            <Text style={[styles.badgesTitle, { color: colors.textPrimary }]}>🏅 Badges</Text>
+            <View style={styles.badgesRight}>
+              <Text style={[styles.badgesCount, { color: colors.primary }]}>
+                {earnedBadges.length} / {totalCount}
+              </Text>
+              <Icon name="chevron-forward" size={16} color={colors.textTertiary} />
+            </View>
+          </View>
+          {earnedBadges.length > 0 ? (
+            <View style={styles.badgesRow}>
+              {earnedBadges.map(b => (
+                <View key={b.id} style={[styles.badgeEmoji, { backgroundColor: b.color + '20' }]}>
+                  <Text style={styles.badgeEmojiText}>{b.icon}</Text>
+                </View>
+              ))}
+              {totalCount - earnedBadges.length > 0 && (
+                <View style={[styles.badgeEmoji, { backgroundColor: colors.border }]}>
+                  <Text style={[styles.badgeMore, { color: colors.textSecondary }]}>
+                    +{totalCount - earnedBadges.length}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : (
+            <Text style={[styles.badgesEmpty, { color: colors.textTertiary }]}>
+              Start earning badges by sharing preferences!
+            </Text>
+          )}
+        </TouchableOpacity>
 
         {/* Menu Section */}
         <View style={styles.menuSection}>
@@ -144,6 +195,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+
+  /* Badges */
+  badgesCard: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    borderWidth: StyleSheet.hairlineWidth,
+    padding: 14,
+    gap: 10,
+  },
+  badgesHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  badgesTitle: { fontSize: 15, fontWeight: '700' },
+  badgesRight: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  badgesCount: { fontSize: 13, fontWeight: '700' },
+  badgesRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  badgeEmoji: {
+    width: 40, height: 40, borderRadius: 20,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  badgeEmojiText: { fontSize: 20 },
+  badgeMore: { fontSize: 11, fontWeight: '700' },
+  badgesEmpty: { fontSize: 13 },
 
   /* Menu */
   menuSection: {

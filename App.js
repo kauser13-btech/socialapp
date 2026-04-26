@@ -15,23 +15,6 @@ if (Platform.OS === 'android') {
   registerGlobals();
 }
 
-// Background handler for Firebase Cloud Messaging
-import messaging from '@react-native-firebase/messaging';
-import notifee, { AndroidImportance } from '@notifee/react-native';
-
-messaging().setBackgroundMessageHandler(async remoteMessage => {
-  const { data } = remoteMessage;
-  if (data?.type === 'message') {
-    const channelId = await notifee.createChannel({ id: 'messages', name: 'Messages', importance: AndroidImportance.HIGH, sound: 'default' });
-    await notifee.displayNotification({
-      title: data.senderName || 'New Message',
-      body: data.content || 'You have a new message',
-      data,
-      android: { channelId, smallIcon: 'ic_notification', pressAction: { id: 'default' }, sound: 'default' },
-      ios: { sound: 'default' },
-    });
-  }
-});
 
 function AppContent() {
   const { isDark } = useTheme();
