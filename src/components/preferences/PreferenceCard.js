@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform,
   Modal, TextInput, FlatList, ActivityIndicator, Alert, KeyboardAvoidingView,
-  Animated,
+  Animated, ImageBackground,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -35,6 +35,25 @@ const CATEGORY_ICON_MAP = [
   { keys: ['tech', 'gadget'],      icon: 'hardware-chip',  color: '#64748b' },
 ];
 
+// Gradient colors for cards without images, keyed to category
+const CATEGORY_GRADIENTS = [
+  { keys: ['food', 'dining'],      colors: ['#f97316', '#ea580c'] },
+  { keys: ['movie', 'film'],       colors: ['#8b5cf6', '#6d28d9'] },
+  { keys: ['travel', 'trip'],      colors: ['#0ea5e9', '#0284c7'] },
+  { keys: ['music'],               colors: ['#10b981', '#059669'] },
+  { keys: ['game'],                colors: ['#f59e0b', '#d97706'] },
+  { keys: ['book', 'read'],        colors: ['#6366f1', '#4f46e5'] },
+  { keys: ['sport', 'fitness'],    colors: ['#ec4899', '#db2777'] },
+  { keys: ['tech', 'gadget'],      colors: ['#64748b', '#475569'] },
+];
+
+function getGradientForCategory(name) {
+  if (!name) return ['#6B63F5', '#4f46e5'];
+  const lower = name.toLowerCase();
+  const match = CATEGORY_GRADIENTS.find(({ keys }) => keys.some(k => lower.includes(k)));
+  return match ? match.colors : ['#6B63F5', '#4f46e5'];
+}
+
 export default function PreferenceCard({ preference, onUpdate }) {
   const navigation = useNavigation();
   const { colors, isDark } = useTheme();
@@ -47,7 +66,6 @@ export default function PreferenceCard({ preference, onUpdate }) {
   const totalReactions = Object.values(reactions).reduce((a, b) => a + b, 0);
   const currentEmoji = userReaction ? REACTION_MAP[userReaction] : null;
 
-  // Share modal state
   const [shareVisible, setShareVisible] = useState(false);
   const [shareQuery, setShareQuery] = useState('');
   const [shareResults, setShareResults] = useState([]);
@@ -55,12 +73,11 @@ export default function PreferenceCard({ preference, onUpdate }) {
   const [shareSending, setShareSending] = useState(false);
   const debounceRef = useRef(null);
 
-  // Collection picker state
   const [collectionModalVisible, setCollectionModalVisible] = useState(false);
   const [collections, setCollections] = useState([]);
   const [collectionsLoading, setCollectionsLoading] = useState(false);
 
-  const openShare = () => { setShareVisible(true); };
+  const openShare = () => setShareVisible(true);
   const closeShare = () => {
     setShareVisible(false);
     setShareQuery('');
@@ -181,13 +198,7 @@ export default function PreferenceCard({ preference, onUpdate }) {
     const stars = [];
     for (let i = 1; i <= 5; i++) {
       stars.push(
-        <Icon 
-          key={i} 
-          name={i <= rating ? "star" : "star-outline"} 
-          size={16} 
-          color="#fbbf24" 
-          style={styles.star} 
-        />
+        <Icon key={i} name={i <= rating ? 'star' : 'star-outline'} size={14} color="#f59e0b" />
       );
     }
     return stars;
@@ -201,95 +212,152 @@ export default function PreferenceCard({ preference, onUpdate }) {
   };
 
   const catIcon = preference.category ? getIconForCategory(preference.category.name) : null;
+  const gradientColors = getGradientForCategory(preference.category?.name);
+  const heroImage = preference.images && preference.images.length > 0 ? preference.images[0] : null;
+
+  const timeAgo = (() => {
+    if (!preference.created_at) return '';
+    const diff = Date.now() - new Date(preference.created_at).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return 'Just now';
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+  })();
+
+  // Pick a subtle accent tint from the category for the gradient border
+  const accentColor = catIcon ? catIcon.color : colors.primary;
 
   return (
-    <TouchableOpacity 
-      style={[
-        styles.card, 
-        { 
-          backgroundColor: isDark ? colors.cardBackground : '#ffffff',
-          borderColor: isDark ? colors.border : '#ffffff', // hide border on light mode if card has shadow
-          ...(isDark ? {} : shadows.md), // Add shadow on light mode only for cleaner dark mode depth
-        }
-      ]} 
-      onPress={handlePress}
-      activeOpacity={0.9}
-    >
-      {/* Category Background Watermark */}
-      {preference.category && catIcon && (
-        <Icon 
-          name={catIcon.name} 
-          size={80} 
-          color={isDark ? catIcon.color + '15' : catIcon.color + '10'} 
-          style={styles.watermarkIcon} 
-        />
-      )}
+    <View style={[
+      styles.cardWrapper,
+      {
+        backgroundColor: isDark
+          ? accentColor + '22'   // dark: faint colored glow ring
+          : accentColor + '18',  // light: very soft tinted border
+      },
+    ]}>
+    <View style={[styles.card, { backgroundColor: isDark ? colors.cardBackground : '#ffffff', ...(isDark ? {} : shadows.md) }]}>
 
-      {/* User Header */}
+      {/* ── User Header ── */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.userInfo}
+          style={styles.userRow}
           onPress={() => navigation.navigate('UserProfile', { username: preference.user?.username })}
           activeOpacity={0.7}
         >
           <Avatar user={preference.user} size="medium" />
-          <View style={styles.userDetails}>
+          <View style={styles.userMeta}>
             <Text style={[styles.userName, { color: colors.textPrimary }]}>
               {preference.user?.name || preference.user?.first_name || 'User'}
             </Text>
-            <Text style={[styles.username, { color: colors.textSecondary }]}>@{preference.user?.username}</Text>
+            <View style={styles.subRow}>
+              {timeAgo ? <Text style={[styles.timeText, { color: colors.textSecondary }]}>{timeAgo}</Text> : null}
+              {timeAgo && preference.category ? <Text style={[styles.dot, { color: colors.textSecondary }]}>·</Text> : null}
+              {preference.category && catIcon && (
+                <View style={styles.inlineCat}>
+                  <Text style={styles.inlineCatEmoji}>
+                    {catIcon.name === 'book' ? '📚' :
+                     catIcon.name === 'restaurant' ? '🍽️' :
+                     catIcon.name === 'film' ? '🎬' :
+                     catIcon.name === 'airplane' ? '✈️' :
+                     catIcon.name === 'musical-notes' ? '🎵' :
+                     catIcon.name === 'game-controller' ? '🎮' :
+                     catIcon.name === 'fitness' ? '💪' :
+                     catIcon.name === 'hardware-chip' ? '💻' : '📁'}
+                  </Text>
+                  <Text style={[styles.inlineCatText, { color: catIcon.color }]}>
+                    {preference.category.name}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         </TouchableOpacity>
 
-        {/* Category Badge */}
-        {preference.category && catIcon && (
-          <View style={[styles.categoryBadge, { backgroundColor: catIcon.color + '18' }]}>
-            <Icon name={catIcon.name} size={13} color={catIcon.color} />
-            <Text style={[styles.categoryText, { color: catIcon.color }]}>
-              {preference.category.name}
-            </Text>
-          </View>
-        )}
+        <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} activeOpacity={0.6}>
+          <Icon name="ellipsis-vertical" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
       </View>
 
-      {/* Content */}
-      <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>{preference.title}</Text>
-        
-        {preference.description && (
-          <Text style={[styles.description, { color: colors.textSecondary }]} numberOfLines={3}>
-            {preference.description}
-          </Text>
-        )}
-
-        {preference.rating && (
-          <View style={styles.ratingContainer}>
-            <View style={styles.stars}>{renderStars(preference.rating)}</View>
+      {/* ── Hero Card (image or gradient) ── */}
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.92} style={styles.heroWrapper}>
+        {heroImage ? (
+          <ImageWithLoader
+            id={preference?.id}
+            uri={heroImage.url}
+            style={styles.heroImage}
+          />
+        ) : (
+          <View style={[styles.heroGradient, { backgroundColor: gradientColors[0] }]}>
+            {/* Subtle second tone overlay */}
+            <View style={[styles.heroGradientOverlay, { backgroundColor: gradientColors[1] }]} />
           </View>
         )}
 
-        {preference.location && (
-          <View style={styles.locationWrapper}>
-            <Icon name="location-outline" size={14} color={colors.textSecondary} />
-            <Text style={[styles.location, { color: colors.textSecondary }]} numberOfLines={1}>
-              {preference.location}
+        {/* Dark overlay for text readability */}
+        <View style={styles.heroOverlay} />
+
+        {/* Category badge — top left */}
+        {preference.category && catIcon && (
+          <View style={styles.heroCategoryBadge}>
+            <Text style={styles.heroCategoryEmoji}>
+              {catIcon.name === 'book' ? '📚' :
+               catIcon.name === 'restaurant' ? '🍽️' :
+               catIcon.name === 'film' ? '🎬' :
+               catIcon.name === 'airplane' ? '✈️' :
+               catIcon.name === 'musical-notes' ? '🎵' :
+               catIcon.name === 'game-controller' ? '🎮' :
+               catIcon.name === 'fitness' ? '💪' :
+               catIcon.name === 'hardware-chip' ? '💻' : '📁'}
             </Text>
+            <Text style={styles.heroCategoryText}>{preference.category.name}</Text>
           </View>
         )}
 
-        {preference.images && preference.images.length > 0 && (
-          <ScrollView horizontal style={styles.imagesContainer} showsHorizontalScrollIndicator={false}>
-            {preference.images.map((image) => (
+        {/* Title + subtitle overlaid bottom */}
+        <View style={styles.heroBottom}>
+          <Text style={styles.heroTitle} numberOfLines={2}>{preference.title}</Text>
+          {preference.location && (
+            <Text style={styles.heroSubtitle} numberOfLines={1}>{preference.location}</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+
+      {/* ── Content below hero ── */}
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.9} style={styles.content}>
+        <Text style={[styles.contentTitle, { color: colors.textPrimary }]}>{preference.title}</Text>
+
+        {preference.description ? (
+          <Text style={[styles.contentDescription, { color: colors.textSecondary }]} numberOfLines={3}>
+            "{preference.description}"
+          </Text>
+        ) : null}
+
+        {/* Rating row */}
+        {preference.rating ? (
+          <View style={styles.ratingRow}>
+            <View style={styles.stars}>{renderStars(preference.rating)}</View>
+            <Text style={[styles.ratingNum, { color: colors.textSecondary }]}>{preference.rating.toFixed(1)}</Text>
+          </View>
+        ) : null}
+
+        {/* Extra images strip (2nd image onwards) */}
+        {preference.images && preference.images.length > 1 && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.extraImages}>
+            {preference.images.slice(1).map((image) => (
               <ImageWithLoader
                 id={preference?.id}
                 key={image.id ?? image.url}
                 uri={image.url}
-                style={styles.image}
+                style={styles.extraImage}
               />
             ))}
           </ScrollView>
         )}
 
+        {/* Tags */}
         {preference.tags && preference.tags.length > 0 && (
           <View style={styles.tagsContainer}>
             {preference.tags.map((tag) => (
@@ -299,112 +367,56 @@ export default function PreferenceCard({ preference, onUpdate }) {
             ))}
           </View>
         )}
+      </TouchableOpacity>
 
-        {/* Reaction summary row */}
-        {Object.keys(reactions).length > 0 && (
-          <View style={styles.reactionSummary}>
-            {Object.entries(reactions)
-              .sort(([, a], [, b]) => b - a)
-              .slice(0, 3)
-              .map(([key, count]) => (
-                <Text key={key} style={[styles.reactionChip, { color: colors.textSecondary }]}>
-                  {REACTION_MAP[key]}{count}
-                </Text>
-              ))}
-          </View>
-        )}
-      </View>
-
-      {/* Actions */}
+      {/* ── Actions ── */}
       <View style={[styles.actions, { borderTopColor: colors.border }]}>
+        {/* Like */}
         <TouchableOpacity
-          style={styles.actionButton}
+          style={styles.actionBtn}
           onPress={handleReactionTap}
           onLongPress={showPicker}
           delayLongPress={400}
           activeOpacity={0.6}
         >
-          <Text style={styles.reactionIcon}>{currentEmoji || '👍'}</Text>
-          <Text style={[styles.actionText, { color: userReaction ? '#ef4444' : colors.textSecondary }]}>
+          <Icon
+            name={userReaction ? 'heart' : 'heart-outline'}
+            size={20}
+            color={userReaction ? '#ef4444' : colors.textSecondary}
+          />
+          <Text style={[styles.actionCount, { color: userReaction ? '#ef4444' : colors.textSecondary }]}>
             {totalReactions}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={handlePress} activeOpacity={0.6}>
+        {/* Comments */}
+        <TouchableOpacity style={styles.actionBtn} onPress={handlePress} activeOpacity={0.6}>
           <Icon name="chatbubble-outline" size={20} color={colors.textSecondary} />
-          <Text style={[styles.actionText, { color: colors.textSecondary }]}>{preference.comments_count || 0}</Text>
+          <Text style={[styles.actionCount, { color: colors.textSecondary }]}>{preference.comments_count || 0}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.actionButton} onPress={openShare} activeOpacity={0.6}>
-          <Icon name="share-social-outline" size={20} color={colors.textSecondary} />
-          <Text style={[styles.actionText, { color: colors.textSecondary }]}>Share</Text>
+        {/* Share */}
+        <TouchableOpacity style={styles.actionBtn} onPress={openShare} activeOpacity={0.6}>
+          <Icon name="arrow-redo-outline" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
 
+        {/* Save */}
         <TouchableOpacity
-          style={styles.actionButton}
+          style={styles.actionBtn}
           onPress={handleSave}
           onLongPress={openCollectionPicker}
           delayLongPress={400}
           activeOpacity={0.6}
         >
           <Icon
-            name={isSaved ? "bookmark" : "bookmark-outline"}
+            name={isSaved ? 'bookmark' : 'bookmark-outline'}
             size={20}
             color={isSaved ? colors.primary : colors.textSecondary}
           />
-          <Text style={[styles.actionText, { color: colors.textSecondary }]}>Save</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Collection picker modal */}
-      <Modal visible={collectionModalVisible} animationType="slide" transparent onRequestClose={() => setCollectionModalVisible(false)}>
-        <KeyboardAvoidingView style={shareStyles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-          <View style={[shareStyles.sheet, { backgroundColor: colors.background }]}>
-            <View style={shareStyles.handle} />
-            <View style={shareStyles.sheetHeader}>
-              <Text style={[shareStyles.sheetTitle, { color: colors.textPrimary }]}>Add to Collection</Text>
-              <TouchableOpacity onPress={() => setCollectionModalVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                <Icon name="close" size={22} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <View style={[shareStyles.previewChip, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40' }]}>
-              <Icon name="bookmark" size={14} color={colors.primary} />
-              <Text style={[shareStyles.previewTitle, { color: colors.primary }]} numberOfLines={1}>{preference.title}</Text>
-            </View>
-            {collectionsLoading ? (
-              <ActivityIndicator color={colors.primary} style={{ padding: 32 }} />
-            ) : (
-              <FlatList
-                data={collections}
-                keyExtractor={item => item.id.toString()}
-                style={shareStyles.resultsList}
-                keyboardShouldPersistTaps="handled"
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={[shareStyles.resultRow, { borderBottomColor: colors.border }]}
-                    onPress={() => handleAddToCollection(item)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={{ fontSize: 24 }}>{item.emoji || '📁'}</Text>
-                    <View style={shareStyles.resultText}>
-                      <Text style={[shareStyles.resultName, { color: colors.textPrimary }]}>{item.name}</Text>
-                      <Text style={[shareStyles.resultUsername, { color: colors.textSecondary }]}>{item.preferences_count || 0} preferences</Text>
-                    </View>
-                    <Icon name="add-circle-outline" size={22} color={colors.primary} />
-                  </TouchableOpacity>
-                )}
-                ListEmptyComponent={
-                  <Text style={[shareStyles.emptyText, { color: colors.textSecondary }]}>
-                    No collections yet. Create one from the Collections screen.
-                  </Text>
-                }
-              />
-            )}
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
-
-      {/* Reaction picker overlay — dismiss layer is behind the picker */}
+      {/* Reaction picker overlay */}
       {pickerVisible && (
         <>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={0} onPress={hidePicker} />
@@ -427,36 +439,73 @@ export default function PreferenceCard({ preference, onUpdate }) {
         </>
       )}
 
+      {/* ── Collection picker modal ── */}
+      <Modal visible={collectionModalVisible} animationType="slide" transparent onRequestClose={() => setCollectionModalVisible(false)}>
+        <KeyboardAvoidingView style={sheetStyles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={[sheetStyles.sheet, { backgroundColor: colors.background }]}>
+            <View style={sheetStyles.handle} />
+            <View style={sheetStyles.sheetHeader}>
+              <Text style={[sheetStyles.sheetTitle, { color: colors.textPrimary }]}>Add to Collection</Text>
+              <TouchableOpacity onPress={() => setCollectionModalVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Icon name="close" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={[sheetStyles.previewChip, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40' }]}>
+              <Icon name="bookmark" size={14} color={colors.primary} />
+              <Text style={[sheetStyles.previewTitle, { color: colors.primary }]} numberOfLines={1}>{preference.title}</Text>
+            </View>
+            {collectionsLoading ? (
+              <ActivityIndicator color={colors.primary} style={{ padding: 32 }} />
+            ) : (
+              <FlatList
+                data={collections}
+                keyExtractor={item => item.id.toString()}
+                style={sheetStyles.resultsList}
+                keyboardShouldPersistTaps="handled"
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[sheetStyles.resultRow, { borderBottomColor: colors.border }]}
+                    onPress={() => handleAddToCollection(item)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ fontSize: 24 }}>{item.emoji || '📁'}</Text>
+                    <View style={sheetStyles.resultText}>
+                      <Text style={[sheetStyles.resultName, { color: colors.textPrimary }]}>{item.name}</Text>
+                      <Text style={[sheetStyles.resultUsername, { color: colors.textSecondary }]}>{item.preferences_count || 0} preferences</Text>
+                    </View>
+                    <Icon name="add-circle-outline" size={22} color={colors.primary} />
+                  </TouchableOpacity>
+                )}
+                ListEmptyComponent={
+                  <Text style={[sheetStyles.emptyText, { color: colors.textSecondary }]}>
+                    No collections yet. Create one from the Collections screen.
+                  </Text>
+                }
+              />
+            )}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       {/* ── Share Modal ── */}
       <Modal visible={shareVisible} animationType="slide" transparent onRequestClose={closeShare}>
-        <KeyboardAvoidingView
-          style={shareStyles.overlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <View style={[shareStyles.sheet, { backgroundColor: colors.background }]}>
-
-            {/* Handle + header */}
-            <View style={shareStyles.handle} />
-            <View style={shareStyles.sheetHeader}>
-              <Text style={[shareStyles.sheetTitle, { color: colors.textPrimary }]}>Share Preference</Text>
+        <KeyboardAvoidingView style={sheetStyles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={[sheetStyles.sheet, { backgroundColor: colors.background }]}>
+            <View style={sheetStyles.handle} />
+            <View style={sheetStyles.sheetHeader}>
+              <Text style={[sheetStyles.sheetTitle, { color: colors.textPrimary }]}>Share Preference</Text>
               <TouchableOpacity onPress={closeShare} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Icon name="close" size={22} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
-
-            {/* Preview chip */}
-            <View style={[shareStyles.previewChip, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40' }]}>
+            <View style={[sheetStyles.previewChip, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40' }]}>
               <Icon name="bookmark" size={14} color={colors.primary} />
-              <Text style={[shareStyles.previewTitle, { color: colors.primary }]} numberOfLines={1}>
-                {preference.title}
-              </Text>
+              <Text style={[sheetStyles.previewTitle, { color: colors.primary }]} numberOfLines={1}>{preference.title}</Text>
             </View>
-
-            {/* Search input */}
-            <View style={[shareStyles.searchBar, { backgroundColor: isDark ? colors.cardBackground : '#f3f4f6' }]}>
+            <View style={[sheetStyles.searchBar, { backgroundColor: isDark ? colors.cardBackground : '#f3f4f6' }]}>
               <Icon name="search" size={16} color={colors.textSecondary} />
               <TextInput
-                style={[shareStyles.searchInput, { color: colors.textPrimary }]}
+                style={[sheetStyles.searchInput, { color: colors.textPrimary }]}
                 placeholder="Search people..."
                 placeholderTextColor={colors.textSecondary}
                 value={shareQuery}
@@ -466,12 +515,10 @@ export default function PreferenceCard({ preference, onUpdate }) {
               />
               {shareSearching && <ActivityIndicator size="small" color={colors.primary} />}
             </View>
-
-            {/* Results */}
             <FlatList
               data={shareResults}
               keyExtractor={item => item.id.toString()}
-              style={shareStyles.resultsList}
+              style={sheetStyles.resultsList}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => {
                 const name = item.first_name && item.last_name
@@ -479,15 +526,15 @@ export default function PreferenceCard({ preference, onUpdate }) {
                   : item.username;
                 return (
                   <TouchableOpacity
-                    style={[shareStyles.resultRow, { borderBottomColor: colors.border }]}
+                    style={[sheetStyles.resultRow, { borderBottomColor: colors.border }]}
                     onPress={() => handleSendShare(item)}
                     disabled={shareSending}
                     activeOpacity={0.7}
                   >
                     <Avatar user={item} size="medium" />
-                    <View style={shareStyles.resultText}>
-                      <Text style={[shareStyles.resultName, { color: colors.textPrimary }]}>{name}</Text>
-                      <Text style={[shareStyles.resultUsername, { color: colors.textSecondary }]}>@{item.username}</Text>
+                    <View style={sheetStyles.resultText}>
+                      <Text style={[sheetStyles.resultName, { color: colors.textPrimary }]}>{name}</Text>
+                      <Text style={[sheetStyles.resultUsername, { color: colors.textSecondary }]}>@{item.username}</Text>
                     </View>
                     {shareSending
                       ? <ActivityIndicator size="small" color={colors.primary} />
@@ -498,162 +545,224 @@ export default function PreferenceCard({ preference, onUpdate }) {
               }}
               ListEmptyComponent={
                 shareQuery.length > 0 && !shareSearching
-                  ? <Text style={[shareStyles.emptyText, { color: colors.textSecondary }]}>No users found</Text>
-                  : <Text style={[shareStyles.emptyText, { color: colors.textSecondary }]}>Type a name to search</Text>
+                  ? <Text style={[sheetStyles.emptyText, { color: colors.textSecondary }]}>No users found</Text>
+                  : <Text style={[sheetStyles.emptyText, { color: colors.textSecondary }]}>Type a name to search</Text>
               }
             />
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </TouchableOpacity>
+    </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  cardWrapper: {
+    borderRadius: 22,
+    marginBottom: 20,
+    padding: 2,
+  },
   card: {
-    marginBottom: 16,
     borderRadius: 20,
-    borderWidth: 1,
-    // Note: Do not use overflow: 'hidden' with shadows on iOS and Android seamlessly or the shadow gets cropped.
-    // Instead we rely on the inner elements respecting the border radius.
+    overflow: 'hidden',
   },
-  watermarkIcon: {
-    position: 'absolute',
-    top: -10,
-    right: -10,
-    zIndex: 0,
-    transform: [{ rotate: '15deg' }],
-  },
+
+  /* Header */
   header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    marginBottom: 12,
-    zIndex: 1,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
-  userInfo: {
+  userRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
+    gap: 10,
   },
-  userDetails: {
-    marginLeft: 12,
+  userMeta: {
     flex: 1,
-  },
-  categoryBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  categoryText: {
-    fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
   },
   userName: {
     fontSize: 15,
     fontWeight: '600',
     letterSpacing: -0.2,
   },
-  username: {
-    fontSize: 13,
+  subRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     marginTop: 2,
   },
+  timeText: {
+    fontSize: 12,
+  },
+  dot: {
+    fontSize: 12,
+  },
+  inlineCat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  inlineCatEmoji: {
+    fontSize: 12,
+  },
+  inlineCatText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+
+  /* Hero */
+  heroWrapper: {
+    marginHorizontal: 12,
+    borderRadius: 16,
+    overflow: 'hidden',
+    height: 220,
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 0,
+  },
+  heroGradient: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  heroGradientOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: '50%',
+    opacity: 0.6,
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  heroCategoryBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  heroCategoryEmoji: {
+    fontSize: 13,
+  },
+  heroCategoryText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1a1a1a',
+  },
+  heroBottom: {
+    position: 'absolute',
+    bottom: 14,
+    left: 14,
+    right: 14,
+  },
+  heroTitle: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    marginTop: 3,
+    fontWeight: '500',
+  },
+
+  /* Content */
   content: {
     paddingHorizontal: 16,
-    zIndex: 1,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
-  title: {
-    fontSize: 18,
+  contentTitle: {
+    fontSize: 17,
     fontWeight: '700',
     letterSpacing: -0.3,
     marginBottom: 6,
   },
-  description: {
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 12,
+  contentDescription: {
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 10,
+    fontStyle: 'italic',
   },
-  ratingContainer: {
-    marginBottom: 12,
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
   },
   stars: {
     flexDirection: 'row',
+    gap: 2,
   },
-  star: {
-    marginRight: 2,
-  },
-  locationWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    gap: 4,
-  },
-  location: {
+  ratingNum: {
     fontSize: 13,
+    fontWeight: '600',
   },
-  imagesContainer: {
-    marginBottom: 12,
+  extraImages: {
+    marginBottom: 10,
   },
-  image: {
-    width: 240,
-    height: 160,
-    borderRadius: 12,
-    marginRight: 12,
+  extraImage: {
+    width: 120,
+    height: 80,
+    borderRadius: 10,
+    marginRight: 8,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginBottom: 8,
-    gap: 8,
+    gap: 6,
   },
   tag: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
     borderRadius: 8,
   },
   tagText: {
     fontSize: 12,
     fontWeight: '500',
   },
+
+  /* Actions */
   actions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    marginTop: 8,
-    zIndex: 1,
+    marginTop: 4,
+    gap: 4,
   },
-  actionButton: {
+  actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    gap: 6,
+    gap: 5,
+    marginRight: 18,
   },
-  actionText: {
-    fontSize: 13,
+  actionCount: {
+    fontSize: 14,
     fontWeight: '500',
   },
-  reactionSummary: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
-    marginBottom: 8,
-  },
-  reactionChip: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  reactionIcon: {
-    fontSize: 20,
-  },
+
+  /* Reaction picker */
   reactionPicker: {
     position: 'absolute',
     bottom: 56,
@@ -678,7 +787,7 @@ const styles = StyleSheet.create({
   },
 });
 
-const shareStyles = StyleSheet.create({
+const sheetStyles = StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',

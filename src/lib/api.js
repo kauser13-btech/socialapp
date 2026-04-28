@@ -150,6 +150,22 @@ class APIClient {
 // Create singleton instance
 const api = new APIClient();
 
+// Rewrites image URLs stored with APP_URL (e.g. http://localhost:8000) to use
+// the actual API server origin so devices on LAN can reach them.
+const _apiOrigin = (() => {
+  try { return new URL(apiBaseUrl).origin; } catch { return ''; }
+})();
+export function fixImageUrl(url) {
+  if (!url || !_apiOrigin) return url;
+  try {
+    const u = new URL(url);
+    if (u.origin !== _apiOrigin) {
+      return _apiOrigin + u.pathname + u.search + u.hash;
+    }
+  } catch { /* not a valid URL, return as-is */ }
+  return url;
+}
+
 // Authentication API
 export const authAPI = {
   register: (userData) => api.post('/auth/register', userData),
@@ -193,11 +209,15 @@ export const preferencesAPI = {
   getSaved: () => api.get('/preferences/saved'),
   share: (id) => api.get(`/preferences/${id}/share`),
   parseVoice: (text) => api.post('/preferences/parse-voice', { text }),
+  setFavorite: (id, isFavorite) => api.post(`/preferences/${id}/favorite`, { is_favorite: isFavorite }),
+  getFriendsWhoLove: (id) => api.get(`/preferences/${id}/friends-who-love`),
+  getSimilar: (id) => api.get(`/preferences/${id}/similar`),
+  shareToFeed: (id) => api.post(`/preferences/${id}/share-to-feed`),
 };
 
 // Feed API
 export const feedAPI = {
-  getFeed: () => api.get('/feed'),
+  getFeed: (page = 1) => api.get(`/feed?page=${page}`),
   getMyFeed: () => api.get('/feed/my'),
   getFollowingFeed: () => api.get('/feed/following'),
   getTrending: () => api.get('/feed/trending'),

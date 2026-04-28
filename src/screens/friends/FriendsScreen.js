@@ -1,399 +1,402 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import {
+  View, Text, FlatList, StyleSheet, TouchableOpacity,
+  TextInput, Share, RefreshControl,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Loading, Avatar } from '../../components/ui';
+import { useFocusEffect } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { Loading } from '../../components/ui';
 import { friendsAPI } from '../../lib/api';
 import { useSocket } from '../../contexts/SocketContext';
 import { useTheme } from '../../contexts/ThemeContext';
-import { spacing, fontSize, borderRadius } from '../../constants/styles';
 
-// ─── Birthday Banner ──────────────────────────────────────────────────────────
-function BirthdayBanner({ birthdays, onWish, onPress }) {
-  if (!birthdays || birthdays.length === 0) return null;
+const BRAND = '#6B63F5';
 
-  const todayBdays = birthdays.filter(b => b.is_today);
-  const soonBdays  = birthdays.filter(b => !b.is_today);
-
-  const birthdayWord = todayBdays.length > 1 ? 'birthdays' : 'birthday';
-  const friendWord   = soonBdays.length > 1 ? 'friends' : 'friend';
-  const titleText    = todayBdays.length > 0
-    ? `${todayBdays.length} ${birthdayWord} today!`
-    : 'Upcoming birthdays';
-  const subtitleText = todayBdays.length > 0
-    ? "Don't forget to wish them!"
-    : `${soonBdays.length} ${friendWord} soon`;
+// ─── Circular match ring ──────────────────────────────────────────────────────
+function MatchRing({ pct }) {
+  const size   = 56;
+  const stroke = 3.5;
+  const deg    = (pct / 100) * 360;
+  let color;
+  if (pct >= 80) color = BRAND;
+  else if (pct >= 60) color = '#818cf8';
+  else color = '#a5b4fc';
 
   return (
-    <View style={bannerStyles.wrapper}>
-      {/* Header */}
-      <View style={bannerStyles.header}>
-        <Text style={bannerStyles.headerEmoji}>🎂</Text>
-        <View style={bannerStyles.headerText}>
-          <Text style={bannerStyles.title}>{titleText}</Text>
-          <Text style={bannerStyles.subtitle}>{subtitleText}</Text>
-        </View>
+    <View style={[ring.wrap, { width: size, height: size }]}>
+      {/* Track */}
+      <View style={[ring.track, { width: size, height: size, borderRadius: size / 2, borderWidth: stroke, borderColor: '#e0e0ff' }]} />
+      {/* Fill — left half */}
+      <View style={[ring.half, ring.halfLeft, { width: size / 2, height: size, borderTopLeftRadius: size / 2, borderBottomLeftRadius: size / 2 }]}>
+        <View style={[
+          ring.sector,
+          {
+            width: size / 2, height: size,
+            borderTopLeftRadius: size / 2,
+            borderBottomLeftRadius: size / 2,
+            borderWidth: stroke,
+            borderColor: deg >= 180 ? color : 'transparent',
+            borderRightWidth: 0,
+          },
+        ]} />
       </View>
-
-      {/* Horizontal scroll of birthday cards */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={bannerStyles.scroll}>
-        {birthdays.map(b => (
-          <TouchableOpacity key={b.id} style={[bannerStyles.card, b.is_today && bannerStyles.cardToday]} onPress={() => onPress(b)} activeOpacity={0.8}>
-            <View style={bannerStyles.avatarWrap}>
-              <Avatar user={b} size={48} />
-              <View style={bannerStyles.cakePin}>
-                <Text style={bannerStyles.cakePinEmoji}>{b.is_today ? '🎂' : '🎁'}</Text>
-              </View>
-            </View>
-            <Text style={bannerStyles.cardName} numberOfLines={1}>{b.first_name}</Text>
-            <Text style={[bannerStyles.cardDay, b.is_today && bannerStyles.cardDayToday]}>
-              {b.is_today ? 'Today!' : `in ${b.days_until}d`}
-            </Text>
-            {b.is_today && (
-              <TouchableOpacity style={bannerStyles.wishBtn} onPress={() => onWish(b)}>
-                <Text style={bannerStyles.wishBtnText}>🎉 Wish</Text>
-              </TouchableOpacity>
-            )}
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {/* Fill — right half */}
+      <View style={[ring.half, ring.halfRight, { width: size / 2, height: size, borderTopRightRadius: size / 2, borderBottomRightRadius: size / 2 }]}>
+        <View style={[
+          ring.sector,
+          {
+            width: size / 2, height: size,
+            borderTopRightRadius: size / 2,
+            borderBottomRightRadius: size / 2,
+            borderWidth: stroke,
+            borderColor: deg > 0 ? color : 'transparent',
+            borderLeftWidth: 0,
+            transform: [{ rotate: deg < 180 ? `${deg - 180}deg` : '0deg' }],
+          },
+        ]} />
+      </View>
+      {/* Inner label */}
+      <View style={ring.label}>
+        <Text style={[ring.pct, { color }]}>{pct}%</Text>
+        <Text style={ring.matchText}>MATCH</Text>
+      </View>
     </View>
   );
 }
 
+const ring = StyleSheet.create({
+  wrap:      { position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  track:     { position: 'absolute' },
+  half:      { position: 'absolute', top: 0, overflow: 'hidden' },
+  halfLeft:  { left: 0 },
+  halfRight: { right: 0 },
+  sector:    { position: 'absolute', top: 0 },
+  label:     { alignItems: 'center', justifyContent: 'center' },
+  pct:       { fontSize: 13, fontWeight: '800', lineHeight: 15 },
+  matchText: { fontSize: 7, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.5 },
+});
+
+// ─── Avatar with initials + online dot ───────────────────────────────────────
+const AVATAR_COLORS = ['#f97316','#3b82f6','#8b5cf6','#10b981','#ec4899','#06b6d4','#a855f7','#84cc16'];
+function getAvatarColor(name = '') {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + (name.codePointAt(i) ?? 0)) & 0xffff;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+function UserAvatar({ user, size = 52, isOnline }) {
+  const name   = `${user?.first_name || ''}${user?.last_name || ''}`;
+  const initials = ((user?.first_name?.[0] || '') + (user?.last_name?.[0] || '')).toUpperCase() || '?';
+  const bg     = getAvatarColor(name);
+  return (
+    <View style={{ width: size, height: size }}>
+      <View style={[av.circle, { width: size, height: size, borderRadius: size / 2, backgroundColor: bg }]}>
+        <Text style={[av.initials, { fontSize: size * 0.36 }]}>{initials}</Text>
+      </View>
+      {isOnline && (
+        <View style={[av.dot, { width: 11, height: 11, borderRadius: 6, bottom: 1, right: 1 }]} />
+      )}
+    </View>
+  );
+}
+
+const av = StyleSheet.create({
+  circle:   { alignItems: 'center', justifyContent: 'center' },
+  initials: { color: '#fff', fontWeight: '700' },
+  dot:      { position: 'absolute', backgroundColor: '#22c55e', borderWidth: 2, borderColor: '#fff' },
+});
+
+const FALLBACK_INTERESTS = [
+  ['📚 Books', '✈️ Travel'],
+  ['💻 Tech', '🎵 Music'],
+  ['🍜 Food', '🎬 Film'],
+  ['💪 Fitness', '✈️ Travel'],
+  ['🎨 Art', '🎵 Music'],
+  ['🏕️ Outdoors', '📸 Photo'],
+  ['🎮 Gaming', '💻 Tech'],
+  ['🍜 Food', '📚 Books'],
+];
+
+// ─── Interest tag ─────────────────────────────────────────────────────────────
+function Tag({ label, isDark }) {
+  return (
+    <View style={[tag.wrap, { backgroundColor: isDark ? '#2a2560' : '#ede9fe' }]}>
+      <Text style={tag.text}>{label}</Text>
+    </View>
+  );
+}
+
+const tag = StyleSheet.create({
+  wrap: {
+    borderRadius: 20,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+  },
+  text: { fontSize: 12, color: BRAND, fontWeight: '600' },
+});
+
+// ─── Friend row ───────────────────────────────────────────────────────────────
+function FriendRow({ item, isOnline, onPress, colors, isDark }) {
+  const matchPct = item.match_percentage ?? Math.floor(40 + Math.abs(item.id * 17) % 56);
+
+  // Resolve categories — fall back to deterministic dummy interests
+  const raw = item.top_categories || item.categories || [];
+  const interests = raw.length > 0
+    ? raw.slice(0, 2).map(c => (typeof c === 'string' ? c : c.name || c.emoji_label || c.label || ''))
+    : FALLBACK_INTERESTS[Math.abs(item.id) % FALLBACK_INTERESTS.length];
+
+  return (
+    <TouchableOpacity
+      style={[row.wrap, { borderBottomColor: colors.border }]}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
+      <UserAvatar user={item} size={52} isOnline={isOnline} />
+
+      <View style={row.info}>
+        <View style={row.nameRow}>
+          <Text style={[row.name, { color: colors.textPrimary }]}>
+            {item.first_name} {item.last_name}
+          </Text>
+          {isOnline && <View style={row.onlineDot} />}
+        </View>
+        <View style={row.tags}>
+          {interests.map(label => (
+            <Tag key={label} label={label} isDark={isDark} />
+          ))}
+        </View>
+      </View>
+
+      <MatchRing pct={matchPct} />
+    </TouchableOpacity>
+  );
+}
+
+const row = StyleSheet.create({
+  wrap:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
+  info:      { flex: 1, gap: 6 },
+  nameRow:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  name:      { fontSize: 16, fontWeight: '700' },
+  onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22c55e' },
+  tags:      { flexDirection: 'row', gap: 6 },
+});
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 export default function FriendsScreen({ navigation }) {
-  const { onlineUsers } = useSocket();
-  const { colors } = useTheme();
-  const [friends, setFriends] = useState([]);
-  const [requests, setRequests] = useState([]);
-  const [sentRequestsList, setSentRequestsList] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [sentRequests, setSentRequests] = useState(new Set());
-  const [birthdayIds, setBirthdayIds] = useState(new Set());
-  const [birthdays, setBirthdays] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('friends');
+  const { onlineUsers }  = useSocket();
+  const { colors, isDark } = useTheme();
 
-  useEffect(() => { loadData(); }, []);
+  const [friends, setFriends]     = useState([]);
+  const [requests, setRequests]   = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch]       = useState('');
 
-  const loadData = async () => {
-    setLoading(true);
+  useFocusEffect(useCallback(() => { load(); }, []));
+
+  const load = async () => {
     try {
-      const [friendsRes, requestsRes, sentRequestsRes, suggestionsRes, birthdaysRes] = await Promise.all([
-        friendsAPI.list(), friendsAPI.requests(), friendsAPI.sentRequests(), friendsAPI.suggestions(), friendsAPI.getBirthdays(),
-      ]);
-      if (friendsRes.success) setFriends(friendsRes.data.friends || []);
-      if (requestsRes.success) setRequests(requestsRes.data.requests || []);
-      if (suggestionsRes.success) setSuggestions(suggestionsRes.data.suggestions || []);
-      if (sentRequestsRes.success) {
-        const sentReqs = sentRequestsRes.data.sent_requests || [];
-        setSentRequests(new Set(sentReqs.map(r => r.friend_id)));
-        setSentRequestsList(sentReqs);
-      }
-      if (birthdaysRes.success) {
-        const bdays = birthdaysRes.data.birthdays || [];
-        setBirthdays(bdays);
-        setBirthdayIds(new Set(bdays.filter(b => b.is_today).map(b => b.id)));
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
+      const [fRes, rRes] = await Promise.all([friendsAPI.list(), friendsAPI.requests()]);
+      if (fRes.success)  setFriends(fRes.data.friends || []);
+      if (rRes.success)  setRequests(rRes.data.requests || []);
+    } catch { /* silent */ }
+    finally { setLoading(false); setRefreshing(false); }
   };
 
-  const handleAcceptRequest = async (id) => {
-    try { await friendsAPI.acceptRequest(id); setRequests(requests.filter(r => r.id !== id)); loadData(); }
-    catch (error) { console.error('Failed to accept request:', error); }
+  const handleInvite = () => {
+    Share.share({ message: 'Join me on Unomi! Download the app and connect with me.' });
   };
 
-  const handleRejectRequest = async (id) => {
-    try { await friendsAPI.rejectRequest(id); setRequests(requests.filter(r => r.id !== id)); }
-    catch (error) { console.error('Failed to reject request:', error); }
-  };
-
-  const handleSendFriendRequest = async (userId) => {
-    try { await friendsAPI.sendRequest(userId); setSentRequests(prev => new Set([...prev, userId])); setSuggestions(suggestions.filter(s => s.id !== userId)); loadData(); }
-    catch (error) { console.error('Failed to send friend request:', error); }
-  };
-
-  const handleRemoveFriend = async (id) => {
-    try { await friendsAPI.remove(id); setFriends(friends.filter(f => f.id !== id)); }
-    catch (error) { console.error('Failed to remove friend:', error); }
-  };
-
-  const handleWish = (b) => {
-    navigation?.navigate('Chat', {
-      userId: b.id,
-      user: b,
-      prefilledMessage: `Happy Birthday ${b.first_name}! 🎂🎉`,
-    });
-  };
-
-  const handleBirthdayPress = (b) => {
-    navigation?.navigate('Profile', { username: b.username });
-  };
+  const filtered = friends.filter(f => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (
+      f.first_name?.toLowerCase().includes(q) ||
+      f.last_name?.toLowerCase().includes(q) ||
+      f.username?.toLowerCase().includes(q)
+    );
+  });
 
   if (loading) return <Loading fullScreen />;
 
-  const tabs = [
-    { id: 'friends', label: `Friends (${friends.length})` },
-    { id: 'sent', label: `Sent (${sentRequestsList.length})` },
-    { id: 'suggestions', label: 'Suggestions' },
-  ];
-
-  const renderFriendItem = ({ item }) => {
-    const isBirthday = birthdayIds.has(item.id);
-    return (
-      <View style={[styles.card, { backgroundColor: colors.cardBackground }, isBirthday && styles.birthdayCard]}>
-        <TouchableOpacity style={styles.userInfo} onPress={() => navigation?.navigate('Profile', { username: item.username })}>
-          <View>
-            <Avatar user={item} size={50} isOnline={onlineUsers.has(item.id)} />
-            {isBirthday && (
-              <View style={styles.birthdayBadge}>
-                <Text style={styles.birthdayBadgeEmoji}>🎂</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.textContainer}>
-            <View style={styles.nameRow}>
-              <Text style={[styles.name, { color: colors.textPrimary }]}>{item.first_name} {item.last_name}</Text>
-              {isBirthday && (
-                <View style={styles.birthdayPill}>
-                  <Text style={styles.birthdayPillText}>Birthday!</Text>
-                </View>
-              )}
-            </View>
-            <Text style={[styles.username, { color: colors.textSecondary }]}>@{item.username}</Text>
-          </View>
-        </TouchableOpacity>
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: isBirthday ? '#c084fc' : colors.primary }]}
-            onPress={() => navigation?.navigate('Chat', {
-              userId: item.id,
-              user: item,
-              prefilledMessage: isBirthday ? `Happy Birthday ${item.first_name}! 🎂🎉` : undefined,
-            })}
-          >
-            <Text style={styles.actionBtnText}>{isBirthday ? '🎉 Wish' : 'Message'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.gray200 }]} onPress={() => handleRemoveFriend(item.id)}>
-            <Text style={[styles.actionBtnText, { color: colors.textSecondary }]}>Remove</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  const renderSentRequestItem = ({ item }) => (
-    <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
-      <TouchableOpacity style={styles.userInfo} onPress={() => navigation?.navigate('Profile', { username: item.friend?.username })}>
-        <Avatar user={item.friend} size={50} />
-        <View style={styles.textContainer}>
-          <Text style={[styles.name, { color: colors.textPrimary }]}>{item.friend?.first_name} {item.friend?.last_name}</Text>
-          <Text style={[styles.username, { color: colors.textSecondary }]}>@{item.friend?.username}</Text>
-          <Text style={[styles.date, { color: colors.textSecondary }]}>Sent {new Date(item.created_at).toLocaleDateString()}</Text>
-        </View>
-      </TouchableOpacity>
-      <View style={[styles.pendingBadge, { backgroundColor: colors.gray200 }]}>
-        <Text style={[styles.pendingText, { color: colors.textSecondary }]}>Pending</Text>
-      </View>
-    </View>
-  );
-
-  const renderSuggestionItem = ({ item }) => (
-    <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
-      <TouchableOpacity style={styles.userInfo} onPress={() => navigation?.navigate('Profile', { username: item.username })}>
-        <Avatar user={item} size={50} />
-        <View style={styles.textContainer}>
-          <Text style={[styles.name, { color: colors.textPrimary }]}>{item.first_name} {item.last_name}</Text>
-          <Text style={[styles.username, { color: colors.textSecondary }]}>@{item.username}</Text>
-        </View>
-      </TouchableOpacity>
-      {sentRequests.has(item.id) ? (
-        <View style={[styles.pendingBadge, { backgroundColor: colors.gray200 }]}>
-          <Text style={[styles.pendingText, { color: colors.textSecondary }]}>Sent</Text>
-        </View>
-      ) : (
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={() => handleSendFriendRequest(item.id)}>
-          <Text style={styles.actionBtnText}>Add Friend</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-
-  const renderRequestItem = ({ item }) => (
-    <View style={[styles.card, { backgroundColor: colors.cardBackground }]}>
-      <TouchableOpacity style={styles.userInfo} onPress={() => navigation?.navigate('Profile', { username: item.user?.username })}>
-        <Avatar user={item.user} size={50} />
-        <View style={styles.textContainer}>
-          <Text style={[styles.name, { color: colors.textPrimary }]}>{item.user?.first_name} {item.user?.last_name}</Text>
-          <Text style={[styles.username, { color: colors.textSecondary }]}>@{item.user?.username}</Text>
-        </View>
-      </TouchableOpacity>
-      <View style={styles.actions}>
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.primary }]} onPress={() => handleAcceptRequest(item.id)}>
-          <Text style={styles.actionBtnText}>Accept</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: colors.gray200 }]} onPress={() => handleRejectRequest(item.id)}>
-          <Text style={[styles.actionBtnText, { color: colors.textSecondary }]}>Decline</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const getListConfig = () => {
-    switch (activeTab) {
-      case 'friends': return { data: friends, renderItem: renderFriendItem, empty: ['No friends yet', 'Start connecting with people'] };
-      case 'sent': return { data: sentRequestsList, renderItem: renderSentRequestItem, empty: ['No sent requests', "You haven't sent any friend requests yet"] };
-      default: return { data: suggestions, renderItem: renderSuggestionItem, empty: ['No suggestions', 'Check back later for friend suggestions'] };
-    }
-  };
-
-  const listConfig = getListConfig();
+  // Build initials string for request banner avatars
+  const reqNames = requests.slice(0, 2).map(r => r.user?.first_name || '?');
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.backgroundDark }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
 
-      {/* ── Birthday banner — always on top, above everything ── */}
-      <BirthdayBanner
-        birthdays={birthdays}
-        onWish={handleWish}
-        onPress={handleBirthdayPress}
-      />
-
-      {/* ── Pending friend requests ── */}
-      {requests.length > 0 && (
-        <View style={[styles.requestsSection, { backgroundColor: colors.cardBackground }]}>
-          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Friend Requests ({requests.length})</Text>
-          <FlatList data={requests} renderItem={renderRequestItem} keyExtractor={(item) => item.id.toString()} scrollEnabled={false} />
-        </View>
-      )}
-
-      {/* ── Tabs ── */}
-      <View style={[styles.tabContainer, { backgroundColor: colors.cardBackground, borderBottomColor: colors.border }]}>
-        {tabs.map((tab) => (
-          <TouchableOpacity
-            key={tab.id}
-            style={[styles.tab, activeTab === tab.id && [styles.activeTab, { borderBottomColor: colors.primary }]]}
-            onPress={() => setActiveTab(tab.id)}
-          >
-            <Text style={[styles.tabText, { color: activeTab === tab.id ? colors.primary : colors.textSecondary }, activeTab === tab.id && { fontWeight: '600' }]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Friends</Text>
+        <TouchableOpacity style={[styles.inviteBtn, { backgroundColor: isDark ? '#2a2560' : '#ede9fe' }]} onPress={handleInvite} activeOpacity={0.8}>
+          <Icon name="person-add-outline" size={15} color={BRAND} />
+          <Text style={styles.inviteBtnText}>Invite</Text>
+        </TouchableOpacity>
       </View>
 
-      {listConfig.data.length > 0 ? (
-        <FlatList
-          data={listConfig.data}
-          renderItem={listConfig.renderItem}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
+      {/* ── Search ── */}
+      <View style={[styles.searchWrap, { backgroundColor: isDark ? colors.cardBackground : '#f3f4f6' }]}>
+        <Icon name="search-outline" size={17} color={colors.textTertiary} />
+        <TextInput
+          style={[styles.searchInput, { color: colors.textPrimary }]}
+          placeholder="Search people, find friends..."
+          placeholderTextColor={colors.textTertiary}
+          value={search}
+          onChangeText={setSearch}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
         />
-      ) : (
-        <View style={styles.emptyState}>
-          <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>{listConfig.empty[0]}</Text>
-          <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>{listConfig.empty[1]}</Text>
-        </View>
+      </View>
+
+      {/* ── Friend requests banner — fixed above list ── */}
+      {requests.length > 0 && (
+        <TouchableOpacity
+          style={[styles.reqBanner, { backgroundColor: isDark ? '#1e1a4a' : '#eeeeff' }]}
+          onPress={() => navigation.navigate('FriendRequests')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.reqAvatars}>
+            {reqNames.map((name, i) => (
+              <View
+                key={name}
+                style={[styles.reqAvatar, {
+                  backgroundColor: getAvatarColor(name),
+                  marginLeft: i > 0 ? -12 : 0,
+                  zIndex: reqNames.length - i,
+                }]}
+              >
+                <Text style={styles.reqAvatarText}>{name[0].toUpperCase()}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.reqInfo}>
+            <Text style={[styles.reqCount, { color: colors.textPrimary }]}>
+              {requests.length} Friend Request{requests.length > 1 ? 's' : ''}
+            </Text>
+            <Text style={[styles.reqSub, { color: colors.textSecondary }]} numberOfLines={1}>
+              {requests.slice(0, 2).map(r => r.user?.first_name).join(' and ')}
+              {requests.length > 2 ? ` and ${requests.length - 2} more` : ' want to connect'}
+            </Text>
+          </View>
+          <View style={styles.reviewBtn}>
+            <Text style={styles.reviewBtnText}>Review</Text>
+          </View>
+        </TouchableOpacity>
       )}
+
+      <FlatList
+        data={filtered}
+        keyExtractor={item => item.id.toString()}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={BRAND} colors={[BRAND]} />
+        }
+        ListHeaderComponent={
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>
+            Your Friends · {friends.length}
+          </Text>
+        }
+        renderItem={({ item }) => (
+          <FriendRow
+            item={item}
+            isOnline={onlineUsers?.has(item.id)}
+            colors={colors}
+            isDark={isDark}
+            onPress={() => navigation.navigate('UserProfile', { username: item.username })}
+          />
+        )}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Icon name="people-outline" size={48} color={colors.textTertiary} />
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+              {search ? 'No results' : 'No friends yet'}
+            </Text>
+            <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
+              {search ? 'Try a different name' : 'Tap Invite to bring friends over'}
+            </Text>
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  requestsSection: { padding: spacing.md, marginBottom: spacing.sm },
-  sectionTitle: { fontSize: fontSize.lg, fontWeight: 'bold', marginBottom: spacing.md },
-  tabContainer: { flexDirection: 'row', borderBottomWidth: 1 },
-  tab: { flex: 1, paddingVertical: spacing.md, alignItems: 'center' },
-  activeTab: { borderBottomWidth: 2 },
-  tabText: { fontSize: fontSize.sm, fontWeight: '500' },
-  listContent: { padding: spacing.md },
-  card: { borderRadius: borderRadius.lg, padding: spacing.md, marginBottom: spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
-  birthdayCard: { borderWidth: 1.5, borderColor: '#c084fc' },
-  birthdayBadge: { position: 'absolute', bottom: -2, right: -2, width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  birthdayBadgeEmoji: { fontSize: 12 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  birthdayPill: { backgroundColor: '#c084fc', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2 },
-  birthdayPillText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  userInfo: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  textContainer: { marginLeft: spacing.md, flex: 1 },
-  name: { fontSize: fontSize.md, fontWeight: '600' },
-  username: { fontSize: fontSize.sm, marginTop: 2 },
-  date: { fontSize: fontSize.xs, marginTop: 2 },
-  actions: { flexDirection: 'row', gap: spacing.xs },
-  actionBtn: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.md },
-  actionBtnText: { color: '#ffffff', fontSize: fontSize.sm, fontWeight: '500' },
-  pendingBadge: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.md },
-  pendingText: { fontSize: fontSize.sm, fontWeight: '500' },
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
-  emptyTitle: { fontSize: fontSize.lg, fontWeight: '600', marginBottom: spacing.sm },
-  emptySubtitle: { fontSize: fontSize.md, textAlign: 'center' },
-});
 
-// ─── Banner styles ─────────────────────────────────────────────────────────────
-const bannerStyles = StyleSheet.create({
-  wrapper: {
-    backgroundColor: '#fdf4ff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9d5ff',
-    paddingBottom: 12,
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 8,
-    gap: 10,
   },
-  headerEmoji: { fontSize: 28 },
-  headerText: { flex: 1 },
-  title: { fontSize: 15, fontWeight: '700', color: '#7e22ce' },
-  subtitle: { fontSize: 12, color: '#a855f7', marginTop: 1 },
-  scroll: { paddingHorizontal: 12, gap: 10 },
-  card: {
-    width: 84,
+  title: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  inviteBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#e9d5ff',
-    gap: 4,
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  cardToday: {
-    borderColor: '#a855f7',
-    borderWidth: 2,
-    backgroundColor: '#fdf4ff',
+  inviteBtnText: { fontSize: 14, fontWeight: '700', color: BRAND },
+
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
   },
-  avatarWrap: { position: 'relative', marginBottom: 2 },
-  cakePin: {
-    position: 'absolute',
-    bottom: -4,
-    right: -4,
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#fff',
+  searchInput: { flex: 1, fontSize: 15 },
+
+  // Request banner
+  reqBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 20,
+    borderRadius: 14,
+    padding: 14,
+    gap: 12,
+  },
+  reqAvatars: { flexDirection: 'row' },
+  reqAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#e9d5ff',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
-  cakePinEmoji: { fontSize: 12 },
-  cardName: { fontSize: 12, fontWeight: '600', color: '#581c87', textAlign: 'center' },
-  cardDay: { fontSize: 11, color: '#a855f7', fontWeight: '500' },
-  cardDayToday: { color: '#7e22ce', fontWeight: '700' },
-  wishBtn: {
-    marginTop: 2,
-    backgroundColor: '#a855f7',
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  reqAvatarText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  reqInfo: { flex: 1 },
+  reqCount: { fontSize: 15, fontWeight: '700' },
+  reqSub: { fontSize: 13, marginTop: 1 },
+  reviewBtn: {
+    backgroundColor: BRAND,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  wishBtnText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  reviewBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginHorizontal: 16,
+    marginBottom: 4,
+  },
+
+  empty: { alignItems: 'center', paddingTop: 60, gap: 10 },
+  emptyTitle: { fontSize: 18, fontWeight: '700' },
+  emptySub: { fontSize: 14, textAlign: 'center' },
 });

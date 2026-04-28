@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,766 +6,539 @@ import {
   FlatList,
   TouchableOpacity,
   ScrollView,
-  Linking,
+  TextInput,
+  Dimensions,
+  RefreshControl,
   Platform,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import Geolocation from '@react-native-community/geolocation';
-import { Input, Loading } from '../../components/ui';
-import PreferenceCard from '../../components/preferences/PreferenceCard';
+import { Loading } from '../../components/ui';
 import { searchAPI, feedAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
 
-const CATEGORY_ICONS = {
-  food: { name: 'restaurant', color: '#f43f5e' },
-  dining: { name: 'restaurant', color: '#f43f5e' },
-  movie: { name: 'film', color: '#8b5cf6' },
-  film: { name: 'film', color: '#8b5cf6' },
-  travel: { name: 'airplane', color: '#0ea5e9' },
-  trip: { name: 'airplane', color: '#0ea5e9' },
-  music: { name: 'musical-notes', color: '#10b981' },
-  game: { name: 'game-controller', color: '#f59e0b' },
-  book: { name: 'book', color: '#6366f1' },
-  read: { name: 'book', color: '#6366f1' },
-  sport: { name: 'fitness', color: '#ec4899' },
-  fitness: { name: 'fitness', color: '#ec4899' },
-  tech: { name: 'hardware-chip', color: '#64748b' },
-  gadget: { name: 'hardware-chip', color: '#64748b' },
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_GAP = 10;
+const CARD_WIDTH = (SCREEN_WIDTH - 16 * 2 - CARD_GAP) / 2;
+
+// ─── Category config ──────────────────────────────────────────────────────────
+const CATEGORY_META = {
+  all:      { emoji: '✨', label: 'All',      gradient: ['#6B63F5', '#9B89FA'] },
+  food:     { emoji: '🍽️', label: 'Food',     gradient: ['#f43f5e', '#fb7185'] },
+  travel:   { emoji: '✈️', label: 'Travel',   gradient: ['#0ea5e9', '#38bdf8'] },
+  film:     { emoji: '🎬', label: 'Film',     gradient: ['#8b5cf6', '#a78bfa'] },
+  music:    { emoji: '🎵', label: 'Music',    gradient: ['#a855f7', '#c084fc'] },
+  books:    { emoji: '📚', label: 'Books',    gradient: ['#6366f1', '#818cf8'] },
+  fitness:  { emoji: '💪', label: 'Fitness',  gradient: ['#10b981', '#34d399'] },
+  tech:     { emoji: '💻', label: 'Tech',     gradient: ['#64748b', '#94a3b8'] },
+  games:    { emoji: '🎮', label: 'Games',    gradient: ['#f59e0b', '#fbbf24'] },
+  wellness: { emoji: '🧘', label: 'Wellness', gradient: ['#ec4899', '#f472b6'] },
+  art:      { emoji: '🎨', label: 'Art',      gradient: ['#06b6d4', '#22d3ee'] },
+  coffee:   { emoji: '☕', label: 'Coffee',   gradient: ['#92400e', '#b45309'] },
 };
 
-function getIconForCategory(name) {
-  if (!name) return { name: 'folder-open', color: '#6366f1' };
+function getCategoryMeta(name) {
+  if (!name) return CATEGORY_META.all;
   const lower = name.toLowerCase();
-  for (const key of Object.keys(CATEGORY_ICONS)) {
-    if (lower.includes(key)) return CATEGORY_ICONS[key];
+  for (const key of Object.keys(CATEGORY_META)) {
+    if (lower.includes(key)) return CATEGORY_META[key];
   }
-  return { name: 'folder-open', color: '#6366f1' };
+  return { emoji: '📌', label: name, gradient: ['#6B63F5', '#9B89FA'] };
 }
 
-function openInMaps(lat, lon, label) {
-  const encoded = encodeURIComponent(label || 'Location');
-  const url = Platform.OS === 'ios'
-    ? `maps://?q=${encoded}&ll=${lat},${lon}`
-    : `geo:${lat},${lon}?q=${encoded}`;
-  Linking.openURL(url).catch(() =>
-    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`)
-  );
-}
-
-// ─── Map Pin Card ─────────────────────────────────────────────────────────────
-function MapPinCard({ item, colors, isDark }) {
-  const catIcon = getIconForCategory(item.category?.name);
-  const hasCoords = item.latitude != null && item.longitude != null;
+// ─── Single grid card (full-bleed gradient) ───────────────────────────────────
+function DiscoverCard({ item, onPress }) {
+  const meta = getCategoryMeta(item.category?.name || item.category);
+  const friendsCount = item.friends_count ?? item.saves_count ?? 0;
+  const rating = item.rating ? Number(item.rating).toFixed(1) : null;
+  const hasSubtitle = Boolean(item.author || item.location || item.user?.username);
+  const separator = item.author && item.location ? ' · ' : '';
+  const locationPart = item.location ? `${separator}${item.location}` : '';
+  const subtitle = hasSubtitle ? `${item.author || ''}${locationPart}` : null;
+  const [c1, c2] = meta.gradient;
 
   return (
-    <View style={[
-      mapStyles.pinCard,
-      { backgroundColor: isDark ? colors.cardBackground : '#fff', borderColor: colors.border },
-    ]}>
-      {/* Left accent */}
-      <View style={[mapStyles.accent, { backgroundColor: catIcon.color }]} />
+    <TouchableOpacity style={cardStyles.wrapper} onPress={onPress} activeOpacity={0.85}>
+      {/* ── Base gradient colour ── */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: c1 }]} />
 
-      <View style={mapStyles.pinContent}>
-        {/* Category + title */}
-        <View style={mapStyles.pinHeader}>
-          <View style={[mapStyles.catBadge, { backgroundColor: catIcon.color + '18' }]}>
-            <Icon name={catIcon.name} size={13} color={catIcon.color} />
-            <Text style={[mapStyles.catText, { color: catIcon.color }]}>
-              {item.category?.name || 'General'}
-            </Text>
-          </View>
-          {item.rating ? (
-            <View style={mapStyles.ratingRow}>
-              <Icon name="star" size={12} color="#fbbf24" />
-              <Text style={[mapStyles.ratingText, { color: colors.textSecondary }]}>{item.rating}</Text>
-            </View>
-          ) : null}
-        </View>
+      {/* ── Top-right highlight (simulates diagonal gradient) ── */}
+      <View style={[cardStyles.highlightTopRight, { backgroundColor: c2 }]} />
 
-        <Text style={[mapStyles.pinTitle, { color: colors.textPrimary }]} numberOfLines={1}>
-          {item.title}
-        </Text>
+      {/* ── Bottom-left warm tint ── */}
+      <View style={[cardStyles.tintBottomLeft, { backgroundColor: c1 }]} />
 
-        <View style={mapStyles.pinLocation}>
-          <Icon name="location" size={13} color={catIcon.color} />
-          <Text style={[mapStyles.pinLocationText, { color: colors.textSecondary }]} numberOfLines={1}>
-            {item.location || `${Number(item.latitude).toFixed(4)}, ${Number(item.longitude).toFixed(4)}`}
-          </Text>
-        </View>
+      {/* ── Top shine ── */}
+      <View style={cardStyles.shine} />
 
-        <Text style={[mapStyles.pinUser, { color: colors.textSecondary }]}>
-          by @{item.user?.username}
-        </Text>
+      {/* ── Bottom scrim so text is always readable ── */}
+      <View style={cardStyles.scrim} />
+
+      {/* ── Category badge ── */}
+      <View style={cardStyles.categoryBadge}>
+        <Text style={cardStyles.categoryEmoji}>{meta.emoji}</Text>
+        <Text style={cardStyles.categoryLabel}>{item.category?.name || meta.label}</Text>
       </View>
 
-      {/* Open in maps button */}
-      {hasCoords && (
-        <TouchableOpacity
-          style={[mapStyles.openBtn, { backgroundColor: catIcon.color + '18' }]}
-          onPress={() => openInMaps(item.latitude, item.longitude, item.title)}
-          activeOpacity={0.7}
-        >
-          <Icon name="navigate" size={18} color={catIcon.color} />
-          <Text style={[mapStyles.openBtnText, { color: catIcon.color }]}>Open</Text>
-        </TouchableOpacity>
-      )}
-    </View>
+      {/* ── Big centred emoji ── */}
+      <View style={cardStyles.emojiWrap}>
+        <Text style={cardStyles.bigEmoji}>{meta.emoji}</Text>
+      </View>
+
+      {/* ── Text overlay at bottom ── */}
+      <View style={cardStyles.info}>
+        <Text style={cardStyles.title} numberOfLines={2}>{item.title}</Text>
+        {subtitle ? (
+          <Text style={cardStyles.subtitle} numberOfLines={1}>{subtitle}</Text>
+        ) : null}
+        <View style={cardStyles.meta}>
+          {rating ? (
+            <View style={cardStyles.ratingRow}>
+              <Icon name="star" size={11} color="#ffd700" />
+              <Text style={cardStyles.ratingText}>{rating}</Text>
+            </View>
+          ) : null}
+          {friendsCount > 0 ? (
+            <Text style={cardStyles.friendsText}>{friendsCount} friends</Text>
+          ) : null}
+        </View>
+      </View>
+    </TouchableOpacity>
   );
 }
+
+const CARD_HEIGHT = CARD_WIDTH * 1.28;
+
+const cardStyles = StyleSheet.create({
+  wrapper: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: CARD_GAP,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+
+  /* gradient simulation layers */
+  highlightTopRight: {
+    position: 'absolute',
+    top: -CARD_HEIGHT * 0.4,
+    left: CARD_WIDTH * 0.3,
+    bottom: 0,
+    right: 0,
+    borderRadius: CARD_HEIGHT,
+    opacity: 0.55,
+    transform: [{ scaleX: 1.4 }],
+  },
+  tintBottomLeft: {
+    position: 'absolute',
+    top: CARD_HEIGHT * 0.5,
+    left: 0,
+    right: CARD_WIDTH * 0.2,
+    bottom: 0,
+    borderRadius: CARD_HEIGHT,
+    opacity: 0.3,
+    transform: [{ scaleX: 1.3 }],
+  },
+  shine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: CARD_HEIGHT * 0.38,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderBottomLeftRadius: CARD_WIDTH,
+    borderBottomRightRadius: CARD_WIDTH,
+  },
+  scrim: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: CARD_HEIGHT * 0.52,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+  },
+
+  /* content */
+  categoryBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.30)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  categoryEmoji: { fontSize: 11 },
+  categoryLabel: { color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
+
+  emojiWrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: CARD_HEIGHT * 0.38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bigEmoji: { fontSize: 52, textShadowColor: 'rgba(0,0,0,0.2)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 },
+
+  info: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 13,
+    paddingBottom: 14,
+    gap: 3,
+  },
+  title: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: -0.3,
+    lineHeight: 19,
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  subtitle: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.78)',
+  },
+  meta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  ratingText: { fontSize: 12, fontWeight: '700', color: '#fff' },
+  friendsText: { fontSize: 11, fontWeight: '500', color: 'rgba(255,255,255,0.75)' },
+});
+
+// ─── Filter pill ──────────────────────────────────────────────────────────────
+function FilterPill({ label, emoji, active, onPress, colors, isDark }) {
+  return (
+    <TouchableOpacity
+      style={[
+        pillStyles.pill,
+        active
+          ? { backgroundColor: colors.primary }
+          : { backgroundColor: isDark ? colors.cardBackground : '#f1f5f9', borderColor: colors.border, borderWidth: 1 },
+      ]}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
+      {emoji ? <Text style={pillStyles.emoji}>{emoji}</Text> : null}
+      <Text style={[pillStyles.label, { color: active ? '#fff' : colors.textSecondary }]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+const pillStyles = StyleSheet.create({
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 24,
+    gap: 5,
+  },
+  emoji: { fontSize: 14 },
+  label: { fontSize: 13, fontWeight: '600' },
+});
+
+// ─── Dummy interest data (shown when API returns nothing) ─────────────────────
+const DUMMY_CARDS = [
+  { id: 'd1', title: 'Sushi Nakazawa', author: 'New York', location: '$$$$ ', category: { name: 'Food' }, rating: 4.8, friends_count: 12 },
+  { id: 'd2', title: 'Atomic Habits', author: 'James Clear', category: { name: 'Books' }, rating: 4.9, friends_count: 47 },
+  { id: 'd3', title: 'Kyoto, Japan', author: 'Spring · Cherry Blossoms', category: { name: 'Travel' }, rating: 5, friends_count: 89 },
+  { id: 'd4', title: 'Circles — Mac Miller', author: 'Album · Hip-hop', category: { name: 'Music' }, rating: 4.8, friends_count: 23 },
+  { id: 'd5', title: 'Dune: Part Two', author: 'Denis Villeneuve', category: { name: 'Film' }, rating: 4.9, friends_count: 61 },
+  { id: 'd6', title: 'Blue Bottle Coffee', author: 'Oakland, CA', category: { name: 'Coffee' }, rating: 4.7, friends_count: 18 },
+  { id: 'd7', title: 'After Hours', author: 'The Weeknd', category: { name: 'Music' }, rating: 4.8, friends_count: 41 },
+  { id: 'd8', title: 'Headspace', author: 'Meditation App', category: { name: 'Wellness' }, rating: 4.5, friends_count: 29 },
+  { id: 'd9', title: 'Atom Gym', author: 'Brooklyn, NY', category: { name: 'Fitness' }, rating: 4.7, friends_count: 19 },
+  { id: 'd10', title: 'The Midnight Library', author: 'Matt Haig', category: { name: 'Books' }, rating: 4.9, friends_count: 34 },
+];
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function DiscoverScreen({ navigation }) {
   const { colors, isDark } = useTheme();
+
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeFilter, setActiveFilter] = useState('all');
   const [categories, setCategories] = useState([]);
-  const [searchResults, setSearchResults] = useState([]);
-  const [mapItems, setMapItems] = useState([]);
-  const [mapLoading, setMapLoading] = useState(false);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [cards, setCards] = useState(DUMMY_CARDS);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchResults, setSearchResults] = useState(null);
 
-  const SEARCH_TABS = ['all', 'people', 'preferences', 'places'];
-  const MAIN_TABS = ['browse', 'map', 'nearby'];
-  const TAB_ICONS  = { browse: 'compass', map: 'map', nearby: 'navigate' };
-  const TAB_LABELS = { browse: 'Browse',  map: 'Map',  nearby: 'Near Me' };
+  // Build filter list from API categories + "All"
+  const filterPills = [
+    { key: 'all', ...CATEGORY_META.all },
+    ...categories.map(c => ({ key: c.slug || c.name.toLowerCase(), ...getCategoryMeta(c.name), label: c.name })),
+  ];
 
-  const [mainTab, setMainTab] = useState('browse');
-
-  // Near Me state
-  const [nearbyItems, setNearbyItems]       = useState([]);
-  const [nearbyLoading, setNearbyLoading]   = useState(false);
-  const [nearbyRadius, setNearbyRadius]     = useState(20);
-  const [userLocation, setUserLocation]     = useState(null);
-  const [locationError, setLocationError]   = useState(null);
-  const locationWatchRef = useRef(null);
-
-  const RADIUS_OPTIONS = [5, 10, 20, 50];
-
-  useEffect(() => { loadCategories(); }, []);
-  useEffect(() => { if (mainTab === 'map' && mapItems.length === 0) loadMapItems(); }, [mainTab]);
   useEffect(() => {
-    if (mainTab === 'nearby') {
-      if (userLocation) {
-        loadNearby(userLocation.latitude, userLocation.longitude, nearbyRadius);
-      } else {
-        detectLocation();
-      }
-    }
-  }, [mainTab]);
+    loadCategories();
+    loadDiscover();
+  }, []);
 
   const loadCategories = async () => {
+    setCategoriesLoading(true);
     try {
-      const response = await searchAPI.getCategories();
-      if (response.success) setCategories(response.data.categories || []);
+      const res = await searchAPI.getCategories();
+      if (res.success) setCategories(res.data.categories || []);
     } catch (e) {
-      console.error('Error loading categories:', e);
-    }
-  };
-
-  const loadMapItems = async () => {
-    setMapLoading(true);
-    try {
-      const response = await feedAPI.getNearby(23.8136224, 90.4334300, 50);
-      if (response.success) {
-        const items = (response.data?.preferences || []).filter(
-          p => p.latitude != null && p.longitude != null
-        );
-        setMapItems(items);
-      }
-    } catch (e) {
-      console.error('Error loading map items:', e);
+      console.error('loadCategories:', e);
     } finally {
-      setMapLoading(false);
+      setCategoriesLoading(false);
     }
   };
 
-  const detectLocation = () => {
-    setNearbyLoading(true);
-    setLocationError(null);
-    Geolocation.getCurrentPosition(
-      ({ coords }) => {
-        const loc = { latitude: coords.latitude, longitude: coords.longitude };
-        setUserLocation(loc);
-        loadNearby(loc.latitude, loc.longitude, nearbyRadius);
-      },
-      (err) => {
-        setNearbyLoading(false);
-        setLocationError('Could not get your location. Please enable location services.');
-        console.error('Location error:', err);
-      },
-      { enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 }
-    );
-  };
-
-  const loadNearby = async (lat, lng, radius) => {
-    setNearbyLoading(true);
-    try {
-      const response = await feedAPI.getNearby(lat, lng, radius);
-      if (response.success) {
-        setNearbyItems(response.data?.preferences || []);
-      }
-    } catch (e) {
-      setLocationError('Failed to load nearby preferences.');
-      console.error('Nearby load error:', e);
-    } finally {
-      setNearbyLoading(false);
-    }
-  };
-
-  const handleRadiusChange = (radius) => {
-    setNearbyRadius(radius);
-    if (userLocation) {
-      loadNearby(userLocation.latitude, userLocation.longitude, radius);
-    }
-  };
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
+  const loadDiscover = async () => {
     setLoading(true);
     try {
-      if (activeTab === 'all') {
-        const response = await searchAPI.search(searchQuery);
-        if (response.success) {
-          const users = (response.data?.users || []).map(u => ({ ...u, _type: 'user' }));
-          const prefs = (response.data?.preferences || []).map(p => ({ ...p, _type: 'preference' }));
-          setSearchResults([...users, ...prefs]);
-        }
-      } else if (activeTab === 'people') {
-        const response = await searchAPI.searchUsers(searchQuery);
-        if (response.success) {
-          setSearchResults((response.data?.users || []).map(u => ({ ...u, _type: 'user' })));
-        }
-      } else if (activeTab === 'preferences') {
-        const response = await searchAPI.searchPreferences(searchQuery);
-        if (response.success) {
-          setSearchResults((response.data?.preferences || []).map(p => ({ ...p, _type: 'preference' })));
-        }
-      } else {
-        const response = await searchAPI.searchPlaces(searchQuery);
-        if (response.success) {
-          setSearchResults((response.data?.places || []).map(p => ({ ...p, _type: 'preference' })));
-        }
+      const res = await feedAPI.getFeed(1);
+      if (res.success) {
+        const items = res.data?.preferences || [];
+        if (items.length > 0) setCards(items);
       }
     } catch (e) {
-      console.error('Search error:', e);
+      console.error('loadDiscover:', e);
     } finally {
       setLoading(false);
     }
   };
 
-  // ── Map stats summary ──────────────────────────────────────────────────────
-  const uniqueCategories = [...new Set(mapItems.map(i => i.category?.name).filter(Boolean))];
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadDiscover();
+    setRefreshing(false);
+  };
+
+  const handleSearch = useCallback(async (q) => {
+    if (!q.trim()) { setSearchResults(null); return; }
+    setLoading(true);
+    try {
+      const res = await searchAPI.search(q);
+      if (res.success) {
+        const prefs = res.data?.preferences || [];
+        const users = (res.data?.users || []).map(u => ({
+          id: `u-${u.id}`, title: `${u.first_name || ''} ${u.last_name || ''}`.trim() || u.username,
+          author: `@${u.username}`, category: { name: 'People' }, _isUser: true, _user: u,
+        }));
+        setSearchResults([...prefs, ...users]);
+      }
+    } catch (e) {
+      console.error('handleSearch:', e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    const t = setTimeout(() => handleSearch(searchQuery), 400);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Filtered cards
+  const displayCards = (() => {
+    const source = searchResults ?? cards;
+    if (activeFilter === 'all') return source;
+    return source.filter(c => {
+      const name = (c.category?.name || c.category || '').toLowerCase();
+      return name.includes(activeFilter.toLowerCase()) || activeFilter === name;
+    });
+  })();
+
+  // Build pairs for two-column grid
+  const pairs = [];
+  for (let i = 0; i < displayCards.length; i += 2) {
+    pairs.push([displayCards[i], displayCards[i + 1] || null]);
+  }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
 
-      {/* Header */}
-      <View style={[styles.headerArea, { borderBottomColor: colors.border }]}>
+      {/* ── Header ── */}
+      <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Discover</Text>
-
-        {/* Full-width segmented tab toggle */}
-        <View style={[styles.mainTabToggle, { backgroundColor: isDark ? colors.cardBackground : '#f0f0f5' }]}>
-          {MAIN_TABS.map(t => (
-            <TouchableOpacity
-              key={t}
-              style={[styles.mainTabBtn, mainTab === t && { backgroundColor: colors.primary }]}
-              onPress={() => setMainTab(t)}
-              activeOpacity={0.8}
-            >
-              <Icon
-                name={TAB_ICONS[t]}
-                size={14}
-                color={mainTab === t ? '#fff' : colors.textSecondary}
-              />
-              <Text style={[styles.mainTabText, { color: mainTab === t ? '#fff' : colors.textSecondary }]}>
-                {TAB_LABELS[t]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
+          Based on your interests
+        </Text>
       </View>
 
-      {/* ── BROWSE TAB ── */}
-      {mainTab === 'browse' && (
-        <>
-          {/* Search bar */}
-          <View style={[styles.searchWrapper, { backgroundColor: isDark ? colors.cardBackground : '#f3f4f6' }]}>
-            <Icon name="search" size={20} color={colors.textTertiary} style={styles.searchIcon} />
-            <Input
-              placeholder="Search preferences, people, places..."
-              placeholderTextColor={colors.textTertiary}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onSubmitEditing={handleSearch}
-              style={styles.searchInputContainer}
-              inputStyle={[styles.searchInput, { color: colors.textPrimary }]}
+      {/* ── Search bar ── */}
+      <View style={[styles.searchBar, { backgroundColor: isDark ? colors.cardBackground : '#f1f5f9' }]}>
+        <Icon name="search-outline" size={18} color={colors.textTertiary} />
+        <TextInput
+          style={[styles.searchInput, { color: colors.textPrimary }]}
+          placeholder="Search preferences, people, places..."
+          placeholderTextColor={colors.textTertiary}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+        />
+        {searchQuery.length > 0 && Platform.OS === 'android' && (
+          <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <Icon name="close-circle" size={16} color={colors.textTertiary} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* ── Filter pills (horizontal scroll) ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.pillsRow}
+        style={styles.pillsScroll}
+        scrollEnabled={!categoriesLoading}
+      >
+        {categoriesLoading
+          ? [80, 60, 72, 55, 68, 64].map((w, i) => (
+              <View
+                key={`skel-${w}-${i}`}
+                style={[styles.pillSkeleton, { width: w, backgroundColor: isDark ? colors.cardBackground : '#e5e7eb' }]}
+              />
+            ))
+          : filterPills.map(p => (
+              <FilterPill
+                key={p.key}
+                label={p.label}
+                emoji={p.emoji}
+                active={activeFilter === p.key}
+                onPress={() => setActiveFilter(p.key)}
+                colors={colors}
+                isDark={isDark}
+              />
+            ))
+        }
+      </ScrollView>
+
+      {/* ── Grid ── */}
+      {loading && !refreshing ? (
+        <Loading fullScreen />
+      ) : (
+        <FlatList
+          data={pairs}
+          keyExtractor={(_, i) => i.toString()}
+          contentContainerStyle={styles.gridContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
             />
-          </View>
-
-          {/* Search filter tabs */}
-          <View style={styles.tabsContainer}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsScroll}>
-              {SEARCH_TABS.map((tab) => {
-                const isActive = activeTab === tab;
-                const inactiveBg = isDark ? colors.cardBackground : '#f3f4f6';
-                return (
-                  <TouchableOpacity
-                    key={tab}
-                    style={[styles.tabPill, { backgroundColor: isActive ? colors.primary : inactiveBg }]}
-                    onPress={() => setActiveTab(tab)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.tabText, { color: isActive ? '#fff' : colors.textSecondary }, isActive && styles.tabTextActive]}>
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {loading && <Loading fullScreen />}
-
-          {!loading && searchResults.length > 0 && (
-            <FlatList
-              data={searchResults}
-              keyExtractor={(item) => `${item._type}-${item.id}`}
-              contentContainerStyle={styles.list}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => {
-                if (item._type === 'user') {
-                  return (
-                    <TouchableOpacity
-                      style={[styles.userRow, { backgroundColor: isDark ? colors.cardBackground : '#fff', borderColor: colors.border }]}
-                      onPress={() => navigation.navigate('UserProfile', { username: item.username })}
-                      activeOpacity={0.75}
-                    >
-                      <View style={[styles.userAvatar, { backgroundColor: colors.primary + '22' }]}>
-                        <Text style={[styles.userAvatarText, { color: colors.primary }]}>
-                          {(item.first_name || item.username || '?')[0].toUpperCase()}
-                        </Text>
-                      </View>
-                      <View style={styles.userInfo}>
-                        <Text style={[styles.userFullName, { color: colors.textPrimary }]}>
-                          {item.first_name} {item.last_name}
-                        </Text>
-                        <Text style={[styles.userUsername, { color: colors.textSecondary }]}>@{item.username}</Text>
-                      </View>
-                      <Icon name="chevron-forward" size={18} color={colors.textTertiary} />
-                    </TouchableOpacity>
-                  );
-                }
-                return <PreferenceCard preference={item} />;
-              }}
-            />
-          )}
-
-          {!loading && searchResults.length === 0 && (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={styles.categoriesContainer}>
-                <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Browse Categories</Text>
-                <View style={styles.categoryGrid}>
-                  {categories.map((category) => {
-                    const iconConf = getIconForCategory(category.name);
-                    return (
-                      <TouchableOpacity
-                        key={category.id}
-                        style={[styles.categoryCard, { backgroundColor: isDark ? colors.cardBackground : iconConf.color + '10' }]}
-                        onPress={() => navigation.navigate('Category', { slug: category.slug })}
-                        activeOpacity={0.7}
-                      >
-                        <View style={[styles.categoryIconWrap, { backgroundColor: isDark ? iconConf.color + '20' : '#fff' }]}>
-                          <Icon name={iconConf.name} size={28} color={iconConf.color} />
-                        </View>
-                        <Text style={[styles.categoryName, { color: colors.textPrimary }]} numberOfLines={2}>
-                          {category.name}
-                        </Text>
-                        <Text style={[styles.categoryCount, { color: colors.textSecondary }]}>
-                          {category.preferences_count || 0} preferences
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-                {categories.length === 0 && (
-                  <View style={styles.emptyCategories}>
-                    <Icon name="albums-outline" size={48} color={colors.textTertiary} />
-                    <Text style={[styles.emptyText, { color: colors.textSecondary }]}>No categories found.</Text>
-                  </View>
-                )}
-              </View>
-            </ScrollView>
-          )}
-        </>
-      )}
-
-      {/* ── NEAR ME TAB ── */}
-      {mainTab === 'nearby' && (
-        <View style={{ flex: 1 }}>
-          {/* Radius selector */}
-          <View style={[nearbyStyles.controlBar, { backgroundColor: isDark ? colors.cardBackground : '#f8fafc', borderBottomColor: colors.border }]}>
-            <Icon name="navigate-circle" size={16} color={colors.primary} />
-            <Text style={[nearbyStyles.controlLabel, { color: colors.textSecondary }]}>Radius:</Text>
-            {RADIUS_OPTIONS.map(r => (
-              <TouchableOpacity
-                key={r}
-                style={[nearbyStyles.radiusPill, { backgroundColor: nearbyRadius === r ? colors.primary : (isDark ? colors.border : '#e5e7eb') }]}
-                onPress={() => handleRadiusChange(r)}
-                activeOpacity={0.7}
-              >
-                <Text style={[nearbyStyles.radiusPillText, { color: nearbyRadius === r ? '#fff' : colors.textSecondary }]}>{r} km</Text>
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity onPress={detectLocation} style={nearbyStyles.refreshBtn} activeOpacity={0.7}>
-              <Icon name="refresh" size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
-
-          {nearbyLoading ? (
-            <Loading fullScreen />
-          ) : locationError ? (
-            <View style={nearbyStyles.errorBox}>
-              <Icon name="location-outline" size={44} color={colors.textTertiary} />
-              <Text style={[nearbyStyles.errorTitle, { color: colors.textPrimary }]}>Location unavailable</Text>
-              <Text style={[nearbyStyles.errorText, { color: colors.textSecondary }]}>{locationError}</Text>
-              <TouchableOpacity
-                style={[nearbyStyles.retryBtn, { backgroundColor: colors.primary }]}
-                onPress={detectLocation}
-                activeOpacity={0.8}
-              >
-                <Text style={nearbyStyles.retryBtnText}>Try Again</Text>
-              </TouchableOpacity>
-            </View>
-          ) : !userLocation ? (
-            <View style={nearbyStyles.errorBox}>
-              <View style={[nearbyStyles.locIconWrap, { backgroundColor: colors.primary + '15' }]}>
-                <Icon name="location" size={44} color={colors.primary} />
-              </View>
-              <Text style={[nearbyStyles.errorTitle, { color: colors.textPrimary }]}>Find nearby preferences</Text>
-              <Text style={[nearbyStyles.errorText, { color: colors.textSecondary }]}>
-                Discover preferences shared by others around you.
-              </Text>
-              <TouchableOpacity
-                style={[nearbyStyles.retryBtn, { backgroundColor: colors.primary }]}
-                onPress={detectLocation}
-                activeOpacity={0.8}
-              >
-                <Icon name="navigate" size={16} color="#fff" />
-                <Text style={nearbyStyles.retryBtnText}>Use My Location</Text>
-              </TouchableOpacity>
-            </View>
-          ) : nearbyItems.length === 0 ? (
-            <View style={nearbyStyles.errorBox}>
-              <Icon name="map-outline" size={44} color={colors.textTertiary} />
-              <Text style={[nearbyStyles.errorTitle, { color: colors.textPrimary }]}>Nothing nearby</Text>
-              <Text style={[nearbyStyles.errorText, { color: colors.textSecondary }]}>
-                No preferences found within {nearbyRadius} km. Try a larger radius.
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={nearbyItems}
-              keyExtractor={item => item.id.toString()}
-              contentContainerStyle={styles.mapList}
-              showsVerticalScrollIndicator={false}
-              ListHeaderComponent={
-                <Text style={[styles.mapListHeader, { color: colors.textSecondary }]}>
-                  {nearbyItems.length} place{nearbyItems.length !== 1 ? 's' : ''} within {nearbyRadius} km
-                </Text>
-              }
-              renderItem={({ item }) => (
-                <View>
-                  <MapPinCard item={item} colors={colors} isDark={isDark} />
-                  {item.distance_km != null && (
-                    <View style={[nearbyStyles.distanceBadge, { backgroundColor: colors.primary + '15' }]}>
-                      <Icon name="navigate" size={11} color={colors.primary} />
-                      <Text style={[nearbyStyles.distanceText, { color: colors.primary }]}>
-                        {item.distance_km < 1
-                          ? `${Math.round(item.distance_km * 1000)} m away`
-                          : `${item.distance_km} km away`}
-                      </Text>
-                    </View>
-                  )}
-                </View>
+          }
+          renderItem={({ item: [left, right] }) => (
+            <View style={styles.row}>
+              <DiscoverCard
+                item={left}
+                onPress={() => {
+                  if (left._isUser) navigation.navigate('UserProfile', { username: left._user.username });
+                  else navigation.navigate('PreferenceDetail', { id: left.id });
+                }}
+              />
+              {right ? (
+                <DiscoverCard
+                  item={right}
+                  onPress={() => {
+                    if (right._isUser) navigation.navigate('UserProfile', { username: right._user.username });
+                    else navigation.navigate('PreferenceDetail', { id: right.id });
+                  }}
+                />
+              ) : (
+                <View style={{ width: CARD_WIDTH }} />
               )}
-            />
+            </View>
           )}
-        </View>
-      )}
-
-      {/* ── MAP TAB ── */}
-      {mainTab === 'map' && (
-        <View style={{ flex: 1 }}>
-          {/* Stats bar */}
-          <View style={[styles.mapStatsBar, { backgroundColor: isDark ? colors.cardBackground : '#f8fafc', borderBottomColor: colors.border }]}>
-            <View style={styles.mapStat}>
-              <Icon name="location" size={16} color={colors.primary} />
-              <Text style={[styles.mapStatText, { color: colors.textPrimary }]}>
-                <Text style={{ fontWeight: '700' }}>{mapItems.length}</Text> places
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyEmoji}>🔍</Text>
+              <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Nothing found</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                {searchQuery ? 'Try a different search.' : 'No preferences yet in this category.'}
               </Text>
             </View>
-            <View style={styles.mapStatDivider} />
-            <View style={styles.mapStat}>
-              <Icon name="grid" size={16} color={colors.primary} />
-              <Text style={[styles.mapStatText, { color: colors.textPrimary }]}>
-                <Text style={{ fontWeight: '700' }}>{uniqueCategories.length}</Text> categories
-              </Text>
-            </View>
-            <View style={styles.mapStatDivider} />
-            <TouchableOpacity style={styles.mapStat} onPress={loadMapItems} activeOpacity={0.7}>
-              <Icon name="refresh" size={16} color={colors.primary} />
-              <Text style={[styles.mapStatText, { color: colors.primary, fontWeight: '600' }]}>Refresh</Text>
-            </TouchableOpacity>
-          </View>
-
-          {mapLoading ? (
-            <Loading fullScreen />
-          ) : mapItems.length === 0 ? (
-            <View style={styles.mapEmpty}>
-              <View style={[styles.mapEmptyIcon, { backgroundColor: colors.primary + '15' }]}>
-                <Icon name="map-outline" size={44} color={colors.primary} />
-              </View>
-              <Text style={[styles.mapEmptyTitle, { color: colors.textPrimary }]}>No mapped places yet</Text>
-              <Text style={[styles.mapEmptyText, { color: colors.textSecondary }]}>
-                Preferences with location coordinates will appear here.
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={mapItems}
-              keyExtractor={item => item.id.toString()}
-              contentContainerStyle={styles.mapList}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <MapPinCard item={item} colors={colors} isDark={isDark} />
-              )}
-              ListHeaderComponent={
-                <Text style={[styles.mapListHeader, { color: colors.textSecondary }]}>
-                  Tap "Open" to launch in your maps app
-                </Text>
-              }
-            />
-          )}
-        </View>
+          }
+        />
       )}
     </SafeAreaView>
   );
 }
 
-// ─── Map Pin Styles ───────────────────────────────────────────────────────────
-const mapStyles = StyleSheet.create({
-  pinCard: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 8,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
-  },
-  accent: {
-    width: 4,
-  },
-  pinContent: {
-    flex: 1,
-    padding: 12,
-    gap: 4,
-  },
-  pinHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  catBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
-  },
-  catText: { fontSize: 11, fontWeight: '600' },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  ratingText: { fontSize: 12, fontWeight: '600' },
-  pinTitle: { fontSize: 15, fontWeight: '700', letterSpacing: -0.2 },
-  pinLocation: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  pinLocationText: { fontSize: 13, flex: 1 },
-  pinUser: { fontSize: 12, marginTop: 2 },
-  openBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 14,
-    gap: 4,
-    minWidth: 60,
-  },
-  openBtnText: { fontSize: 11, fontWeight: '700' },
-});
-
-// ─── Main Styles ──────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  headerArea: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 12,
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 6,
   },
-  headerTitle: { fontSize: 26, fontWeight: '700', letterSpacing: -0.5 },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+  },
+  headerSub: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginTop: 1,
+  },
 
-  /* Full-width segmented tab toggle */
-  mainTabToggle: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    padding: 3,
-    gap: 2,
-  },
-  mainTabBtn: {
-    flex: 1,
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 8,
-    borderRadius: 10,
-  },
-  mainTabText: { fontSize: 13, fontWeight: '600' },
-
-  /* Search */
-  searchWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 14,
     marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    height: 46,
-  },
-  searchIcon: { marginRight: 8 },
-  searchInputContainer: { flex: 1, marginBottom: 0, borderWidth: 0, backgroundColor: 'transparent' },
-  searchInput: { height: 40, paddingHorizontal: 0, backgroundColor: 'transparent', fontSize: 16 },
-
-  /* Filter tabs */
-  tabsContainer: { marginTop: 6, marginBottom: 10 },
-  tabsScroll: { paddingHorizontal: 16, gap: 8 },
-  tabPill: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  tabText: { fontSize: 13, fontWeight: '500' },
-  tabTextActive: { fontWeight: '600' },
-
-  /* List */
-  list: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40 },
-
-  /* User search row */
-  userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
+    marginTop: 10,
+    marginBottom: 2,
     borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    marginBottom: 8,
-    gap: 12,
-  },
-  userAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userAvatarText: { fontSize: 18, fontWeight: '700' },
-  userInfo: { flex: 1 },
-  userFullName: { fontSize: 15, fontWeight: '600' },
-  userUsername: { fontSize: 13, marginTop: 2 },
-
-  /* Categories */
-  categoriesContainer: { paddingHorizontal: 16, paddingBottom: 40 },
-  sectionTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.3, marginBottom: 12 },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
-  categoryCard: { borderRadius: 16, padding: 16, width: '47.5%', alignItems: 'flex-start' },
-  categoryIconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  categoryName: { fontSize: 14, fontWeight: '600', marginBottom: 3, letterSpacing: -0.2 },
-  categoryCount: { fontSize: 11, fontWeight: '500' },
-  emptyCategories: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
-  emptyText: { marginTop: 16, fontSize: 15 },
-
-  /* Map */
-  mapStatsBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  mapStat: { flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'center' },
-  mapStatText: { fontSize: 13 },
-  mapStatDivider: { width: StyleSheet.hairlineWidth, height: 18, backgroundColor: '#d1d5db' },
-  mapList: { paddingTop: 10, paddingBottom: 40 },
-  mapListHeader: { fontSize: 12, textAlign: 'center', marginBottom: 10, fontStyle: 'italic' },
-  mapEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
-  mapEmptyIcon: { width: 88, height: 88, borderRadius: 44, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
-  mapEmptyTitle: { fontSize: 20, fontWeight: '700', letterSpacing: -0.3, marginBottom: 8 },
-  mapEmptyText: { fontSize: 15, textAlign: 'center', lineHeight: 22 },
-});
-
-// ─── Near Me Styles ───────────────────────────────────────────────────────────
-const nearbyStyles = StyleSheet.create({
-  controlBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14,
+    paddingVertical: Platform.OS === 'ios' ? 10 : 6,
     gap: 8,
   },
-  controlLabel: { fontSize: 13, fontWeight: '500' },
-  radiusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
-  radiusPillText: { fontSize: 12, fontWeight: '600' },
-  refreshBtn: { marginLeft: 'auto', padding: 4 },
-  errorBox: {
+  searchInput: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 40,
-    gap: 12,
+    fontSize: 15,
+    fontWeight: '400',
+    paddingVertical: 0,
   },
-  locIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
+
+  pillsScroll: { height: 50, marginTop: 8, marginBottom: 2 },
+  pillsRow: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
+  pillSkeleton: { height: 36, borderRadius: 24 },
+
+  gridContent: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 100,
   },
-  errorTitle: { fontSize: 20, fontWeight: '700', letterSpacing: -0.3, textAlign: 'center' },
-  errorText: { fontSize: 15, textAlign: 'center', lineHeight: 22 },
-  retryBtn: {
+  row: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
+    gap: CARD_GAP,
+    marginBottom: 0,
   },
-  retryBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  distanceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    alignSelf: 'flex-end',
-    marginRight: 16,
-    marginTop: -8,
-    marginBottom: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  distanceText: { fontSize: 11, fontWeight: '700' },
+
+  empty: { alignItems: 'center', paddingTop: 80, gap: 10 },
+  emptyEmoji: { fontSize: 40 },
+  emptyTitle: { fontSize: 18, fontWeight: '700' },
+  emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
 });

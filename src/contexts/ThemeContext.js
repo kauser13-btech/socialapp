@@ -5,9 +5,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const THEME_KEY = '@theme_preference';
 
 export const lightColors = {
-  primary: '#1B6A88',        // Unomi Primary
-  primaryLight: '#4899AE',
-  primaryHover: '#004D40',
+  primary: '#6B63F5',        // Unomi Primary
+  primaryLight: '#9B95F8',
+  primaryHover: '#4F47D6',
 
   secondary: '#F47C4F',      // Unomi Secondary
   secondaryLight: '#FFB08A',
@@ -54,9 +54,9 @@ export const lightColors = {
 };
 
 export const darkColors = {
-  primary: '#4899AE',        // Unomi Primary (lighter for dark mode)
-  primaryLight: '#1B6A88',
-  primaryHover: '#60aaff',
+  primary: '#9B95F8',        // Unomi Primary (lighter for dark mode)
+  primaryLight: '#6B63F5',
+  primaryHover: '#C4C0FB',
 
   secondary: '#F47C4F',      // Unomi Secondary
   secondaryLight: '#FFB08A',
