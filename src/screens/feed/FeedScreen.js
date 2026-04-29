@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, ScrollView,
+  RefreshControl, ScrollView, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -147,7 +147,7 @@ function StoryBubble({ group, index, isYou, onPress, colors, isDark }) {
 
 function StoriesStrip({ colors, isDark, navigation }) {
   const handleYouPress = () => {
-    navigation.navigate('CreateStory', { onCreated: () => {} });
+    navigation.navigate('CreateStory', { onCreated: () => { } });
   };
 
   const handleGroupPress = (group) => {
@@ -238,7 +238,7 @@ function BirthdayStrip({ birthdays, colors, isDark, onWish, onPress }) {
         <Text style={[bdayStyles.title, { color: colors.textPrimary }]}>Upcoming Birthdays</Text>
       </View>
       {birthdays.map(b => {
-        const dayWord   = b.days_until === 1 ? 'day' : 'days';
+        const dayWord = b.days_until === 1 ? 'day' : 'days';
         const whenLabel = b.is_today
           ? "🎉 It's their birthday today!"
           : `🗓 In ${b.days_until} ${dayWord}`;
@@ -334,10 +334,10 @@ export default function FeedScreen({ navigation }) {
     loadFeed(1);
     notificationsAPI.getUnreadCount().then(res => {
       if (res.success) setUnreadCount(res.data?.count ?? 0);
-    }).catch(() => {});
+    }).catch(() => { });
     friendsAPI.getBirthdays().then(res => {
       if (res.success) setBirthdays(res.data.birthdays || []);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const loadFeed = async (page = 1) => {
@@ -377,16 +377,8 @@ export default function FeedScreen({ navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
-        <View style={styles.wordmark}>
-          <View style={styles.wordmarkIcon}>
-            <View style={styles.wordmarkDots}>
-              <View style={styles.wordmarkDot} />
-              <View style={styles.wordmarkDot} />
-            </View>
-            <View style={styles.wordmarkSmile} />
-          </View>
-          <Text style={styles.wordmarkText}>nomi</Text>
-        </View>
+        <Image source={require('../../../assets/logo_text.png')} style={{ height: 30, width: 90, resizeMode: 'contain' }} />
+
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.notifBtn}
@@ -439,6 +431,9 @@ export default function FeedScreen({ navigation }) {
       {/* Feed */}
       <FlatList
         data={preferences}
+        style={{
+          backgroundColor: '#ecececff'
+        }}
         renderItem={({ item }) => <PreferenceCard preference={item} onUpdate={() => loadFeed(1)} />}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={styles.list}
@@ -452,12 +447,14 @@ export default function FeedScreen({ navigation }) {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <View style={[styles.emptyIconWrap, { backgroundColor: colors.primary + '15' }]}>
-              <Icon name="layers-outline" size={40} color={colors.primary} />
+              <Icon name="layers-outline" size={32} color={colors.primary} />
             </View>
+
             <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Nothing here yet</Text>
             <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
               Create your first preference or follow friends to fill your feed!
             </Text>
+
             <TouchableOpacity
               style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
               onPress={() => navigation.navigate('PreferenceCreate')}
@@ -515,7 +512,7 @@ const styles = StyleSheet.create({
   profileInitialText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   /* List */
-  list: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 100 },
+  list: { paddingHorizontal: 4, paddingTop: 8, paddingBottom: 100 },
 
   /* Empty */
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingTop: 60 },

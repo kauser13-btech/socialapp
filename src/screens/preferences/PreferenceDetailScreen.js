@@ -11,14 +11,14 @@ import { preferencesAPI, fixImageUrl } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const CATEGORY_META = [
-  { keys: ['food', 'dining'],   emoji: '🍽️', color: '#f97316', gradient: ['#f97316', '#ea580c'] },
-  { keys: ['movie', 'film'],    emoji: '🎬', color: '#8b5cf6', gradient: ['#8b5cf6', '#6d28d9'] },
-  { keys: ['travel', 'trip'],   emoji: '✈️', color: '#0ea5e9', gradient: ['#0ea5e9', '#0284c7'] },
-  { keys: ['music'],            emoji: '🎵', color: '#10b981', gradient: ['#10b981', '#059669'] },
-  { keys: ['game'],             emoji: '🎮', color: '#f59e0b', gradient: ['#f59e0b', '#d97706'] },
-  { keys: ['book', 'read'],     emoji: '📚', color: '#6366f1', gradient: ['#6366f1', '#4f46e5'] },
+  { keys: ['food', 'dining'], emoji: '🍽️', color: '#f97316', gradient: ['#f97316', '#ea580c'] },
+  { keys: ['movie', 'film'], emoji: '🎬', color: '#8b5cf6', gradient: ['#8b5cf6', '#6d28d9'] },
+  { keys: ['travel', 'trip'], emoji: '✈️', color: '#0ea5e9', gradient: ['#0ea5e9', '#0284c7'] },
+  { keys: ['music'], emoji: '🎵', color: '#10b981', gradient: ['#10b981', '#059669'] },
+  { keys: ['game'], emoji: '🎮', color: '#f59e0b', gradient: ['#f59e0b', '#d97706'] },
+  { keys: ['book', 'read'], emoji: '📚', color: '#6366f1', gradient: ['#6366f1', '#4f46e5'] },
   { keys: ['sport', 'fitness'], emoji: '💪', color: '#ec4899', gradient: ['#ec4899', '#db2777'] },
-  { keys: ['tech', 'gadget'],   emoji: '💻', color: '#64748b', gradient: ['#64748b', '#475569'] },
+  { keys: ['tech', 'gadget'], emoji: '💻', color: '#64748b', gradient: ['#64748b', '#475569'] },
 ];
 
 function getCategoryMeta(name) {
@@ -45,11 +45,11 @@ function formatAddedDate(dateStr) {
 }
 
 const DUMMY_FRIENDS = [
-  { id: 1,  initials: 'S', color: '#f97316' },
-  { id: 2,  initials: 'A', color: '#10b981' },
-  { id: 3,  initials: 'J', color: '#8b5cf6' },
-  { id: 4,  initials: 'E', color: '#ef4444' },
-  { id: 5,  initials: 'L', color: '#0ea5e9' },
+  { id: 1, initials: 'S', color: '#f97316' },
+  { id: 2, initials: 'A', color: '#10b981' },
+  { id: 3, initials: 'J', color: '#8b5cf6' },
+  { id: 4, initials: 'E', color: '#ef4444' },
+  { id: 5, initials: 'L', color: '#0ea5e9' },
 ];
 const DUMMY_TOTAL = 24;
 
@@ -108,11 +108,11 @@ const fStyles = StyleSheet.create({
 });
 
 const DUMMY_SIMILAR = [
-  { id: 1, title: 'Atomic Habits',  author: 'James Clear',      friends: 47, gradient: ['#f97316', '#ea580c'] },
-  { id: 2, title: 'A Little Life',  author: 'Hanya Yanagihara', friends: 31, gradient: ['#8b5cf6', '#6d28d9'] },
-  { id: 3, title: 'The Alchemist',  author: 'Paulo Coelho',     friends: 58, gradient: ['#0ea5e9', '#0284c7'] },
-  { id: 4, title: 'Educated',       author: 'Tara Westover',    friends: 22, gradient: ['#10b981', '#059669'] },
-  { id: 5, title: 'Normal People',  author: 'Sally Rooney',     friends: 36, gradient: ['#ec4899', '#db2777'] },
+  { id: 1, title: 'Atomic Habits', author: 'James Clear', friends: 47, gradient: ['#f97316', '#ea580c'] },
+  { id: 2, title: 'A Little Life', author: 'Hanya Yanagihara', friends: 31, gradient: ['#8b5cf6', '#6d28d9'] },
+  { id: 3, title: 'The Alchemist', author: 'Paulo Coelho', friends: 58, gradient: ['#0ea5e9', '#0284c7'] },
+  { id: 4, title: 'Educated', author: 'Tara Westover', friends: 22, gradient: ['#10b981', '#059669'] },
+  { id: 5, title: 'Normal People', author: 'Sally Rooney', friends: 36, gradient: ['#ec4899', '#db2777'] },
 ];
 
 function SimilarItems({ categoryName, textPrimary }) {
@@ -151,9 +151,9 @@ function SimilarItems({ categoryName, textPrimary }) {
 
 const sStyles = StyleSheet.create({
   section: { marginBottom: 8 },
-  title:   { fontSize: 17, fontWeight: '700', marginBottom: 14 },
-  scroll:  { gap: 12, paddingBottom: 4 },
-  card:    { width: 140 },
+  title: { fontSize: 17, fontWeight: '700', marginBottom: 14 },
+  scroll: { gap: 12, paddingBottom: 4 },
+  card: { width: 140 },
   thumb: {
     width: 140,
     height: 190,
@@ -173,9 +173,9 @@ const sStyles = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 10,
   },
-  thumbTitle:  { color: '#fff', fontSize: 13, fontWeight: '700', lineHeight: 17, marginBottom: 3 },
+  thumbTitle: { color: '#fff', fontSize: 13, fontWeight: '700', lineHeight: 17, marginBottom: 3 },
   thumbAuthor: { color: 'rgba(255,255,255,0.78)', fontSize: 11, fontWeight: '500', marginBottom: 5 },
-  friendsRow:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  friendsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   friendsText: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '600' },
 });
 
