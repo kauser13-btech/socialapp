@@ -57,10 +57,10 @@ export default function LoginScreen({ navigation }) {
         >
           {/* Brand */}
           <View style={styles.brand}>
-            <Image
-              source={require('../../../assets/logo_icon.png')}
-              style={styles.logoImage}
-              resizeMode="contain"
+            <Image 
+              source={require('../../../assets/logo_full.png')} 
+              style={styles.logoImage} 
+              resizeMode="contain" 
             />
           </View>
 

@@ -22,8 +22,8 @@ import { spacing, fontSize, fontWeight } from '../../constants/styles';
 
 // ── DOB helpers ────────────────────────────────────────────────────────────────
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
 ];
 
 function buildYears() {
@@ -207,7 +207,7 @@ export default function RegisterScreen({ navigation }) {
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
             <Image
-              source={require('../../../assets/logo_icon.png')}
+              source={require('../../../assets/logo_full.png')}
               style={styles.logoImage}
               resizeMode="contain"
             />

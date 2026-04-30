@@ -47,7 +47,7 @@ function ProgressSegment({ active, done, duration }) {
 }
 const seg = StyleSheet.create({
   track: { flex: 1, height: 2.5, backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 2, overflow: 'hidden' },
-  fill: { height: '100%', backgroundColor: '#fff', borderRadius: 2 },
+  fill:  { height: '100%', backgroundColor: '#fff', borderRadius: 2 },
 });
 
 // ─── Viewers bottom sheet ─────────────────────────────────────────────────────
@@ -117,7 +117,7 @@ function StoryBackground({ story, groupIdx, storyIdx }) {
           <Text style={bg.quote}>"{story.quote}"</Text>
         ) : null}
         <View style={bg.ratingRow}>
-          {[1, 2, 3, 4, 5].map(i => (
+          {[1,2,3,4,5].map(i => (
             <Icon
               key={i}
               name={i <= Math.floor(story.rating) ? 'star' : 'star-outline'}
@@ -180,14 +180,14 @@ export default function StoryViewerScreen({ route, navigation }) {
     Math.max(0, groups.findIndex(g => g.user.id === startUserId))
   );
   const [storyIdx, setStoryIdx] = useState(0);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused]     = useState(false);
   const [showViewers, setShowViewers] = useState(false);
 
   const timerRef = useRef(null);
 
   const currentGroup = groups[groupIdx];
   const currentStory = currentGroup?.stories?.[storyIdx];
-  const isOwnStory = currentGroup?.user?.id === me?.id;
+  const isOwnStory   = currentGroup?.user?.id === me?.id;
 
   const advance = useCallback(() => {
     const stories = currentGroup?.stories || [];
@@ -223,11 +223,11 @@ export default function StoryViewerScreen({ route, navigation }) {
   }
 
   const stories = currentGroup.stories;
-  const user = currentGroup.user;
+  const user    = currentGroup.user;
 
   const timeAgo = (() => {
     const secs = Math.floor((Date.now() - currentStory.created_at) / 1000);
-    if (secs < 60) return `${secs}s ago`;
+    if (secs < 60)   return `${secs}s ago`;
     if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
     return `${Math.floor(secs / 3600)}h ago`;
   })();
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   closeBtn: { padding: 4 },
 
   tapZones: { flex: 1, flexDirection: 'row' },
-  tapLeft: { flex: 1 },
+  tapLeft:  { flex: 1 },
   tapRight: { flex: 2 },
 
   captionWrap: {

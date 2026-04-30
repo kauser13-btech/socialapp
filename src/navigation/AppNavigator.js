@@ -16,13 +16,13 @@ import RegisterScreen from '../screens/auth/RegisterScreen';
 // Main Tab Screens
 import FeedScreen from '../screens/feed/FeedScreen';
 import DiscoverScreen from '../screens/discover/DiscoverScreen';
-import ProfileScreen from '../screens/profile/ProfileScreen';
 import SavedScreen from '../screens/saved/SavedScreen';
 
 // Other Screens
 import PreferenceCreateScreen from '../screens/preferences/PreferenceCreateScreen';
 import PreferenceDetailScreen from '../screens/preferences/PreferenceDetailScreen';
 import UserProfileScreen from '../screens/profile/UserProfileScreen';
+import OwnUserProfileScreen from '../screens/profile/OwnUserProfileScreen';
 import FriendsScreen from '../screens/friends/FriendsScreen';
 import GroupsScreen from '../screens/groups/GroupsScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
@@ -38,6 +38,8 @@ import BadgesScreen from '../screens/badges/BadgesScreen';
 import StoryViewerScreen from '../screens/stories/StoryViewerScreen';
 import CreateStoryScreen from '../screens/stories/CreateStoryScreen';
 import FriendRequestsScreen from '../screens/friends/FriendRequestsScreen';
+import SpecialDatesScreen from '../screens/profile/SpecialDatesScreen';
+import AllergiesScreen from '../screens/profile/AllergiesScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -48,6 +50,7 @@ const TABS = [
   { name: 'DiscoverTab', label: 'Discover', icon: 'compass',     component: DiscoverScreen },
   { name: 'FriendsTab',  label: 'Friends',  icon: 'people',      component: FriendsScreen },
   { name: 'SavedTab',    label: 'My Prefs', icon: 'heart',       component: SavedScreen },
+  { name: 'ProfileTab',  label: 'Profile',  icon: 'person',      component: OwnUserProfileScreen },
 ];
 
 function TabIcon({ icon, focused, color, badge }) {
@@ -181,11 +184,11 @@ function MainStack() {
       <Stack.Screen name="Tabs" component={TabNavigator} options={{ headerShown: false }} />
       <Stack.Screen name="PreferenceCreate" component={PreferenceCreateScreen} options={{ title: 'Create Preference', ...headerStyle }} />
       <Stack.Screen name="PreferenceDetail" component={PreferenceDetailScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: 'Profile', ...headerStyle }} />
+      <Stack.Screen name="UserProfile" component={UserProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Collections" component={CollectionsScreen} options={{ title: 'Collections', ...headerStyle }} />
       <Stack.Screen name="CollectionDetail" component={CollectionDetailScreen} options={{ title: 'Collection', ...headerStyle }} />
       <Stack.Screen name="Groups" component={GroupsScreen} options={{ title: 'Groups', ...headerStyle }} />
-      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications', ...headerStyle }} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings', ...headerStyle }} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile', ...headerStyle }} />
       <Stack.Screen name="Category" component={CategoryScreen} options={{ title: 'Category', ...headerStyle }} />
@@ -196,7 +199,9 @@ function MainStack() {
       <Stack.Screen name="StoryViewer" component={StoryViewerScreen} options={{ headerShown: false, animation: 'fade' }} />
       <Stack.Screen name="CreateStory" component={CreateStoryScreen} options={{ headerShown: false, presentation: 'modal' }} />
       <Stack.Screen name="FriendRequests" component={FriendRequestsScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile', ...headerStyle }} />
+      <Stack.Screen name="Profile" component={UserProfileScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="SpecialDates" component={SpecialDatesScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Allergies" component={AllergiesScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }

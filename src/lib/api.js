@@ -203,9 +203,9 @@ export const preferencesAPI = {
   uploadImage: (id, file) => api.upload(`/preferences/${id}/images`, file, 'image'),
   deleteImage: (id, imageId) => api.delete(`/preferences/${id}/images/${imageId}`),
   like: (id, reactionType = 'like') => api.post(`/preferences/${id}/like`, { reaction_type: reactionType }),
-  unlike: (id) => api.delete(`/preferences/${id}/unlike`),
+  unlike: (id) => api.delete(`/preferences/${id}/like`),
   save: (id) => api.post(`/preferences/${id}/save`),
-  unsave: (id) => api.delete(`/preferences/${id}/unsave`),
+  unsave: (id) => api.delete(`/preferences/${id}/save`),
   getSaved: () => api.get('/preferences/saved'),
   share: (id) => api.get(`/preferences/${id}/share`),
   parseVoice: (text) => api.post('/preferences/parse-voice', { text }),
@@ -355,6 +355,22 @@ export const messagesAPI = {
   getUnreadCount: () => api.get('/messages/unread-count'),
   reactToMessage: (id, emoji) => api.post(`/messages/${id}/react`, { emoji }),
   unreactToMessage: (id) => api.delete(`/messages/${id}/react`),
+};
+
+// Special Dates API
+export const specialDatesAPI = {
+  list: () => api.get('/users/me/special-dates'),
+  create: (data) => api.post('/users/me/special-dates', data),
+  update: (id, data) => api.put(`/users/me/special-dates/${id}`, data),
+  delete: (id) => api.delete(`/users/me/special-dates/${id}`),
+};
+
+// Allergies API
+export const allergiesAPI = {
+  list: () => api.get('/users/me/allergies'),
+  create: (data) => api.post('/users/me/allergies', data),
+  update: (id, data) => api.put(`/users/me/allergies/${id}`, data),
+  delete: (id) => api.delete(`/users/me/allergies/${id}`),
 };
 
 // Settings API

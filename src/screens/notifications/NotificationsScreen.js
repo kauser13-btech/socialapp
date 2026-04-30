@@ -1,115 +1,216 @@
-import React, { useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl,
+  RefreshControl, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { Loading } from '../../components/ui';
-import { notificationsAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
-import { formatDistanceToNow } from 'date-fns';
 
-// ── Notification type config ──────────────────────────────────────────────────
-const TYPE_CONFIG = {
-  preference_created: {
-    icon: 'bookmark',
-    color: '#4f6ef7',
-    label: (d) => `@${d.actor_username} added a new preference`,
-    sub:   (d) => d.preference_title || '',
+// ── Dummy data ────────────────────────────────────────────────────────────────
+const DUMMY_NOTIFICATIONS = [
+  // NEW
+  {
+    id: '1',
+    section: 'NEW',
+    type: 'save',
+    actorName: 'Emma Chen',
+    actorInitials: null,
+    actorAvatar: null,
+    actorBgColor: null,
+    actorEmoji: '📚',
+    message: 'saved your book recommendation — The Midnight Library',
+    time: '2m',
+    read: false,
+    thumbnail: null,
+    thumbnailColor: null,
   },
-  // legacy / other types
-  like: {
-    icon: 'heart',
-    color: '#ef4444',
-    label: (d) => `@${d.actor_username || 'Someone'} liked your preference`,
-    sub:   (d) => d.preference_title || '',
+  {
+    id: '2',
+    section: 'NEW',
+    type: 'birthday',
+    actorName: "Emma's birthday",
+    actorInitials: null,
+    actorAvatar: null,
+    actorBgColor: null,
+    actorEmoji: '🎂',
+    message: 'is in 8 days — she loves Books & Travel',
+    time: 'Today',
+    read: false,
+    thumbnail: null,
+    thumbnailColor: null,
   },
-  comment: {
-    icon: 'chatbubble',
-    color: '#f59e0b',
-    label: (d) => `@${d.actor_username || 'Someone'} commented on your preference`,
-    sub:   (d) => d.comment || '',
+  {
+    id: '3',
+    section: 'NEW',
+    type: 'like',
+    actorName: 'Alex Kim',
+    actorInitials: 'A',
+    actorAvatar: null,
+    actorBgColor: '#0ea5e9',
+    actorEmoji: null,
+    message: 'liked your Nobu Restaurant post',
+    time: null,
+    read: false,
+    thumbnail: null,
+    thumbnailColor: '#f97316',
   },
-  follow: {
-    icon: 'person-add',
-    color: '#06b6d4',
-    label: (d) => `@${d.actor_username || 'Someone'} started following you`,
-    sub:   () => '',
+  // EARLIER TODAY
+  {
+    id: '4',
+    section: 'EARLIER TODAY',
+    type: 'group_save',
+    actorName: 'Jordan',
+    actorInitials: 'J',
+    actorAvatar: null,
+    actorBgColor: '#a855f7',
+    actorEmoji: null,
+    message: 'and 3 others also love Interstellar — now 34 friends have it',
+    time: null,
+    read: true,
+    thumbnail: null,
+    thumbnailColor: '#6d28d9',
   },
-  friend_request: {
-    icon: 'people',
-    color: '#f97316',
-    label: (d) => `@${d.actor_username || 'Someone'} sent you a friend request`,
-    sub:   () => '',
+  {
+    id: '5',
+    section: 'EARLIER TODAY',
+    type: 'friend_request',
+    actorName: 'Marcus Kim',
+    actorInitials: 'M',
+    actorAvatar: null,
+    actorBgColor: '#10b981',
+    actorEmoji: null,
+    message: 'sent you a friend request',
+    time: null,
+    read: true,
+    thumbnail: null,
+    thumbnailColor: null,
   },
-};
+  // YESTERDAY
+  {
+    id: '6',
+    section: 'YESTERDAY',
+    type: 'milestone',
+    actorName: null,
+    actorInitials: null,
+    actorAvatar: null,
+    actorBgColor: null,
+    actorEmoji: '🔖',
+    message: 'Your Kyoto recommendation reached 100 saves 🎉',
+    time: null,
+    read: true,
+    thumbnail: null,
+    thumbnailColor: '#10b981',
+  },
+  {
+    id: '7',
+    section: 'YESTERDAY',
+    type: 'share',
+    actorName: 'Lily Wang',
+    actorInitials: 'L',
+    actorAvatar: null,
+    actorBgColor: '#ec4899',
+    actorEmoji: null,
+    message: 'shared a Music preference you might love',
+    time: null,
+    read: true,
+    thumbnail: null,
+    thumbnailColor: '#8b5cf6',
+  },
+];
 
-const FALLBACK_CONFIG = {
-  icon: 'notifications',
-  color: '#94a3b8',
-  label: () => 'New notification',
-  sub:   () => '',
-};
+const SECTIONS = ['NEW', 'EARLIER TODAY', 'YESTERDAY'];
+
+function groupBySection(notifications) {
+  const map = {};
+  for (const s of SECTIONS) map[s] = [];
+  for (const n of notifications) {
+    if (map[n.section]) map[n.section].push(n);
+  }
+  return SECTIONS
+    .filter(s => map[s].length > 0)
+    .map(s => ({ title: s, data: map[s] }));
+}
+
+// ── Avatar ────────────────────────────────────────────────────────────────────
+function Avatar({ item }) {
+  if (item.actorEmoji) {
+    return (
+      <View style={[styles.avatar, { backgroundColor: '#f1f5f9' }]}>
+        <Text style={{ fontSize: 20 }}>{item.actorEmoji}</Text>
+      </View>
+    );
+  }
+  if (item.actorAvatar) {
+    return <Image source={{ uri: item.actorAvatar }} style={styles.avatar} />;
+  }
+  return (
+    <View style={[styles.avatar, { backgroundColor: item.actorBgColor || '#94a3b8' }]}>
+      <Text style={styles.avatarText}>{item.actorInitials || '?'}</Text>
+    </View>
+  );
+}
+
+// ── Thumbnail (right side colored square) ────────────────────────────────────
+function Thumbnail({ color }) {
+  if (!color) return null;
+  return <View style={[styles.thumbnail, { backgroundColor: color }]} />;
+}
 
 // ── Single notification row ───────────────────────────────────────────────────
-function NotifRow({ item, colors, isDark, onPress, onMarkRead }) {
-  const data   = item.data || {};
-  const config = TYPE_CONFIG[item.type] || FALLBACK_CONFIG;
-  const isRead = item.read_at !== null;
-  const readBg   = isDark ? colors.cardBackground : '#fff';
-  const unreadBg = isDark ? config.color + '18' : config.color + '0d';
-  const rowBg    = isRead ? readBg : unreadBg;
+function NotifRow({ item, colors, onAcceptFriend, onIgnoreFriend, onMarkRead }) {
+  const isFriendRequest = item.type === 'friend_request';
+  const rowBg = item.read
+    ? (colors.background || '#fff')
+    : (colors.cardBackground || '#f8faff');
 
-  const label = config.label(data);
-  const sub   = config.sub(data);
-  const time  = item.created_at
-    ? formatDistanceToNow(new Date(item.created_at), { addSuffix: true })
-    : '';
+  const actorPart = item.actorName
+    ? <Text style={[styles.rowText, { color: colors.textPrimary }]}><Text style={styles.actorName}>{item.actorName}</Text>{' '}{item.message}</Text>
+    : <Text style={[styles.rowText, { color: colors.textPrimary }]}>{item.message}</Text>;
 
   return (
     <TouchableOpacity
-      style={[
-        styles.row,
-        { backgroundColor: rowBg, borderBottomColor: colors.border },
-      ]}
-      onPress={() => onPress(item)}
       activeOpacity={0.75}
+      style={[styles.row, { backgroundColor: rowBg }]}
+      onPress={() => { if (!item.read) onMarkRead(item.id); }}
     >
-      {/* Icon */}
-      <View style={[styles.iconWrap, { backgroundColor: config.color + '20' }]}>
-        <Icon name={config.icon} size={20} color={config.color} />
-      </View>
+      <Avatar item={item} />
 
-      {/* Content */}
-      <View style={styles.content}>
-        <Text style={[styles.label, { color: colors.textPrimary }]} numberOfLines={2}>
-          {label}
-        </Text>
-        {sub ? (
-          <Text style={[styles.sub, { color: colors.textSecondary }]} numberOfLines={1}>
-            {sub}
-          </Text>
+      <View style={styles.rowContent}>
+        {actorPart}
+
+        {item.time ? (
+          <Text style={[styles.rowTime, { color: colors.textTertiary || '#94a3b8' }]}>{item.time}</Text>
         ) : null}
-        <Text style={[styles.time, { color: colors.textTertiary }]}>{time}</Text>
-      </View>
 
-      {/* Unread dot + mark read */}
-      <View style={styles.actions}>
-        {!isRead && (
-          <>
-            <View style={[styles.unreadDot, { backgroundColor: config.color }]} />
+        {isFriendRequest && (
+          <View style={styles.friendActions}>
             <TouchableOpacity
-              onPress={() => onMarkRead(item.id)}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{ marginTop: 4 }}
+              style={styles.acceptBtn}
+              activeOpacity={0.8}
+              onPress={() => onAcceptFriend(item.id)}
             >
-              <Icon name="checkmark" size={14} color={colors.textTertiary} />
+              <Text style={styles.acceptBtnText}>Accept</Text>
             </TouchableOpacity>
-          </>
+            <TouchableOpacity
+              style={[styles.ignoreBtn, { borderColor: colors.border || '#e2e8f0' }]}
+              activeOpacity={0.8}
+              onPress={() => onIgnoreFriend(item.id)}
+            >
+              <Text style={[styles.ignoreBtnText, { color: colors.textPrimary }]}>Ignore</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
+
+      {!isFriendRequest && item.thumbnailColor && (
+        <Thumbnail color={item.thumbnailColor} />
+      )}
+
+      {!item.read && (
+        <View style={styles.unreadDot} />
+      )}
     </TouchableOpacity>
   );
 }
@@ -117,100 +218,99 @@ function NotifRow({ item, colors, isDark, onPress, onMarkRead }) {
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function NotificationsScreen({ navigation }) {
   const { colors, isDark } = useTheme();
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [refreshing, setRefreshing]       = useState(false);
+  const [notifications, setNotifications] = useState(DUMMY_NOTIFICATIONS);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useFocusEffect(useCallback(() => { load(); }, []));
+  // Keep real API load available for later — currently uses dummy data
+  useFocusEffect(useCallback(() => {}, []));
 
-  const load = async ({ isRefresh = false } = {}) => {
-    if (!isRefresh) setLoading(true);
-    try {
-      const res = await notificationsAPI.list();
-      if (res.success) {
-        setNotifications(res.data?.notifications || res.data || []);
-      }
-    } catch { /* silent */ }
-    finally { setLoading(false); setRefreshing(false); }
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setNotifications(DUMMY_NOTIFICATIONS);
+      setRefreshing(false);
+    }, 800);
   };
 
-  const handleMarkRead = async (id) => {
-    try {
-      await notificationsAPI.markAsRead(id);
-      setNotifications(prev =>
-        prev.map(n => n.id === id ? { ...n, read_at: new Date().toISOString() } : n)
-      );
-    } catch { /* silent */ }
+  const handleMarkAllRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
-  const handleMarkAllRead = async () => {
-    try {
-      await notificationsAPI.markAllAsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, read_at: n.read_at || new Date().toISOString() })));
-    } catch { /* silent */ }
+  const handleMarkRead = (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
   };
 
-  const handlePress = (item) => {
-    // Mark as read on tap
-    if (!item.read_at) handleMarkRead(item.id);
+  const handleAcceptFriend = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
 
-    const data = item.data || {};
+  const handleIgnoreFriend = (id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
 
-    if (item.type === 'preference_created' && data.preference_id) {
-      navigation.navigate('PreferenceDetail', { id: data.preference_id });
-    } else if (item.type === 'follow' || item.type === 'friend_request') {
-      if (data.actor_username) {
-        navigation.navigate('UserProfile', { username: data.actor_username });
-      }
+  const grouped = groupBySection(notifications);
+
+  // Build flat list items: section headers + rows
+  const listItems = [];
+  for (const group of grouped) {
+    listItems.push({ key: `section_${group.title}`, isHeader: true, title: group.title });
+    for (const item of group.data) {
+      listItems.push({ key: item.id, isHeader: false, item });
     }
-  };
+  }
 
-  const unreadCount = notifications.filter(n => !n.read_at).length;
-
-  if (loading) return <Loading fullScreen />;
+  const bg = isDark ? (colors.background || '#0f172a') : '#f1f5f9';
+  const cardBg = isDark ? (colors.cardBackground || '#1e293b') : '#ffffff';
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['bottom']}>
-      {/* Sub-header */}
-      {unreadCount > 0 && (
-        <View style={[styles.subHeader, { borderBottomColor: colors.border }]}>
-          <Text style={[styles.unreadLabel, { color: colors.textSecondary }]}>
-            {unreadCount} unread
-          </Text>
-          <TouchableOpacity onPress={handleMarkAllRead} activeOpacity={0.7}>
-            <Text style={[styles.markAllBtn, { color: colors.primary }]}>Mark all read</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+    <SafeAreaView style={[styles.container, { backgroundColor: bg }]} edges={['top', 'bottom']}>
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: bg }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Icon name="arrow-back" size={22} color={colors.primary || '#6366f1'} />
+        </TouchableOpacity>
+        <Text style={[styles.headerTitle, { color: colors.textPrimary || '#0f172a' }]}>Activity</Text>
+        <TouchableOpacity onPress={handleMarkAllRead} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={[styles.markAllText, { color: colors.primary || '#6366f1' }]}>Mark all read</Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList
-        data={notifications}
-        keyExtractor={item => item.id.toString()}
+        data={listItems}
+        keyExtractor={item => item.key}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 24 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); load({ isRefresh: true }); }}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary || '#6366f1'}
           />
         }
-        renderItem={({ item }) => (
-          <NotifRow
-            item={item}
-            colors={colors}
-            isDark={isDark}
-            onPress={handlePress}
-            onMarkRead={handleMarkRead}
-          />
-        )}
+        renderItem={({ item }) => {
+          if (item.isHeader) {
+            return (
+              <View style={[styles.sectionHeader, { backgroundColor: bg }]}>
+                <Text style={[styles.sectionTitle, { color: colors.textTertiary || '#94a3b8' }]}>
+                  {item.title}
+                </Text>
+              </View>
+            );
+          }
+          return (
+            <NotifRow
+              item={item.item}
+              colors={{ ...colors, background: cardBg }}
+              onMarkRead={handleMarkRead}
+              onAcceptFriend={handleAcceptFriend}
+              onIgnoreFriend={handleIgnoreFriend}
+            />
+          );
+        }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Icon name="notifications-outline" size={52} color={colors.textTertiary} />
+            <Icon name="notifications-outline" size={52} color={colors.textTertiary || '#94a3b8'} />
             <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No notifications yet</Text>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              When someone creates a preference or follows you, you'll see it here.
-            </Text>
           </View>
         }
       />
@@ -221,42 +321,83 @@ export default function NotificationsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  subHeader: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 14,
   },
-  unreadLabel: { fontSize: 13 },
-  markAllBtn: { fontSize: 13, fontWeight: '600' },
+  headerTitle: { fontSize: 18, fontWeight: '700' },
+  markAllText: { fontSize: 13, fontWeight: '600' },
+
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 6,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
 
   row: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     gap: 12,
   },
-  iconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  content: { flex: 1, gap: 3 },
-  label: { fontSize: 14, fontWeight: '600', lineHeight: 20 },
-  sub: { fontSize: 13, lineHeight: 18 },
-  time: { fontSize: 12, marginTop: 2 },
+  avatarText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
-  actions: { alignItems: 'center', gap: 4, paddingTop: 2 },
-  unreadDot: { width: 8, height: 8, borderRadius: 4 },
+  rowContent: { flex: 1, justifyContent: 'center', gap: 6 },
+  rowText: { fontSize: 14, lineHeight: 20 },
+  actorName: { fontWeight: '700' },
+  rowTime: { fontSize: 12 },
 
-  empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 40, gap: 12 },
+  friendActions: { flexDirection: 'row', gap: 8, marginTop: 2 },
+  acceptBtn: {
+    backgroundColor: '#6366f1',
+    borderRadius: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 7,
+  },
+  acceptBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  ignoreBtn: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 7,
+  },
+  ignoreBtnText: { fontSize: 13, fontWeight: '600' },
+
+  thumbnail: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    flexShrink: 0,
+  },
+
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#6366f1',
+    alignSelf: 'center',
+    marginLeft: 2,
+  },
+
+  empty: { alignItems: 'center', paddingTop: 80, gap: 12 },
   emptyTitle: { fontSize: 18, fontWeight: '700' },
-  emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
 });

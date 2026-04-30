@@ -12,14 +12,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Loading } from '../../components/ui';
-import { preferencesAPI, searchAPI } from '../../lib/api';
+import { preferencesAPI, searchAPI, specialDatesAPI, allergiesAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
 
-// Category visual config: name keyword → emoji, bg gradient, text color
 const CATEGORY_CONFIG = [
   { keys: ['food', 'drink', 'dining', 'restaurant'], emoji: '🍽️', bg: '#FFF3E8', accent: '#f97316', label: 'Food & Drinks' },
   { keys: ['travel', 'trip', 'flight'],              emoji: '✈️', bg: '#E6F6FF', accent: '#0ea5e9', label: 'Travel' },
@@ -33,22 +32,44 @@ const CATEGORY_CONFIG = [
 ];
 
 function getCategoryConfig(name) {
-  if (!name) return { emoji: '📁', bg: '#F3F4F6', accent: '#6b7280', label: name || 'General' };
+  if (!name) return { emoji: '📁', bg: '#F3F4F6', accent: '#6b7280', label: 'General' };
   const lower = name.toLowerCase();
   const match = CATEGORY_CONFIG.find(({ keys }) => keys.some(k => lower.includes(k)));
-  return match
-    ? { ...match, label: name }
-    : { emoji: '📁', bg: '#F3F4F6', accent: '#6b7280', label: name };
+  return match ? { ...match, label: name } : { emoji: '📁', bg: '#F3F4F6', accent: '#6b7280', label: name };
+}
+
+function buildCategoriesFromPrefs(prefs) {
+  const catMap = {};
+  prefs.forEach((p) => {
+    if (!p.category) return;
+    const id = p.category.id || p.category.name;
+    if (!catMap[id]) catMap[id] = { ...p.category, count: 0, isPrivate: false };
+    catMap[id].count += 1;
+    if (p.is_private) catMap[id].isPrivate = true;
+  });
+  return Object.values(catMap);
+}
+
+function mergeCategoriesWithAPI(prev, apiCats) {
+  const byName = {};
+  prev.forEach(c => { byName[c.name?.toLowerCase()] = c; });
+  return apiCats.map(c => ({
+    ...c,
+    count: byName[c.name?.toLowerCase()]?.count || c.preferences_count || 0,
+    isPrivate: byName[c.name?.toLowerCase()]?.isPrivate || false,
+  }));
 }
 
 export default function SavedScreen({ navigation }) {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
 
-  const [categories, setCategories]       = useState([]);
-  const [preferences, setPreferences]     = useState([]);
-  const [loading, setLoading]             = useState(true);
-  const [refreshing, setRefreshing]       = useState(false);
+  const [categories, setCategories]     = useState([]);
+  const [preferences, setPreferences]   = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [refreshing, setRefreshing]     = useState(false);
+  const [specialDates, setSpecialDates] = useState([]);
+  const [allergies, setAllergies]       = useState([]);
 
   const preferencesCount = preferences.length;
   const categoriesCount  = categories.length;
@@ -56,44 +77,34 @@ export default function SavedScreen({ navigation }) {
 
   const load = useCallback(async () => {
     try {
-      const [savedRes, catsRes] = await Promise.allSettled([
+      const [savedRes, catsRes, datesRes, allergiesRes] = await Promise.allSettled([
         preferencesAPI.getSaved(),
         searchAPI.getCategories(),
+        specialDatesAPI.list(),
+        allergiesAPI.list(),
       ]);
 
       if (savedRes.status === 'fulfilled' && savedRes.value.success) {
         const prefs = savedRes.value.data?.preferences || [];
         setPreferences(prefs);
-
-        // Build categories from saved preferences
-        const catMap = {};
-        prefs.forEach((p) => {
-          if (p.category) {
-            const id = p.category.id || p.category.name;
-            if (!catMap[id]) {
-              catMap[id] = { ...p.category, count: 0, isPrivate: false };
-            }
-            catMap[id].count += 1;
-            if (p.is_private) catMap[id].isPrivate = true;
-          }
-        });
-        setCategories(Object.values(catMap));
+        setCategories(buildCategoriesFromPrefs(prefs));
       }
 
       if (catsRes.status === 'fulfilled' && catsRes.value.success) {
         const apiCats = catsRes.value.data?.categories || [];
         if (apiCats.length > 0) {
-          // Merge with count info derived from preferences
-          setCategories((prev) => {
-            const byName = {};
-            prev.forEach(c => { byName[c.name?.toLowerCase()] = c; });
-            return apiCats.map(c => ({
-              ...c,
-              count: byName[c.name?.toLowerCase()]?.count || c.preferences_count || 0,
-              isPrivate: byName[c.name?.toLowerCase()]?.isPrivate || false,
-            }));
-          });
+          setCategories(prev => mergeCategoriesWithAPI(prev, apiCats));
         }
+      }
+
+      if (datesRes.status === 'fulfilled') {
+        const d = datesRes.value?.data?.special_dates ?? datesRes.value?.data;
+        setSpecialDates(Array.isArray(d) ? d : []);
+      }
+
+      if (allergiesRes.status === 'fulfilled') {
+        const a = allergiesRes.value?.data?.allergies ?? allergiesRes.value?.data;
+        setAllergies(Array.isArray(a) ? a : []);
       }
     } catch (e) {
       console.error('Error loading preferences:', e);
@@ -112,8 +123,26 @@ export default function SavedScreen({ navigation }) {
 
   if (loading) return <Loading fullScreen />;
 
+  // Profile Details sub-labels
+  const upcomingCount  = specialDates.filter(d => {
+    const now  = new Date();
+    const year = now.getFullYear();
+    let next   = new Date(year, Number(d.month) - 1, Number(d.day));
+    if (next < now) next = new Date(year + 1, Number(d.month) - 1, Number(d.day));
+    return Math.round((next - now) / (1000 * 60 * 60 * 24)) <= 30;
+  }).length;
+  const severeCount    = allergies.filter(a => a.severity === 'severe').length;
+
+  const dateNames     = specialDates.slice(0, 2).map(d => d.name).join(' · ');
+  const dateUpcoming  = upcomingCount > 0 ? ` · ${upcomingCount} upcoming` : '';
+  const datesSub      = specialDates.length === 0 ? 'Birthday · Anniversary' : dateNames + dateUpcoming;
+
+  const allergyBase   = `${allergies.length} item${allergies.length === 1 ? '' : 's'}`;
+  const allergyStr    = severeCount > 0 ? `${allergyBase} · ${severeCount} severe` : allergyBase;
+  const allergiesSub  = allergies.length === 0 ? 'None added' : allergyStr;
+
   const renderCategoryCard = ({ item, index }) => {
-    const cfg = getCategoryConfig(item.name);
+    const cfg    = getCategoryConfig(item.name);
     const isLeft = index % 2 === 0;
     return (
       <TouchableOpacity
@@ -146,7 +175,6 @@ export default function SavedScreen({ navigation }) {
     );
   };
 
-
   return (
     <SafeAreaView
       style={[styles.container, { backgroundColor: isDark ? colors.background : '#f4f5fa' }]}
@@ -165,7 +193,6 @@ export default function SavedScreen({ navigation }) {
       >
         {/* ── Purple Hero Header ── */}
         <View style={styles.heroSection}>
-          {/* Decorative circles */}
           <View style={styles.heroBubble1} />
           <View style={styles.heroBubble2} />
 
@@ -180,7 +207,6 @@ export default function SavedScreen({ navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* ── Stats Row ── */}
           <View style={styles.statsRow}>
             <TouchableOpacity style={styles.statItem} onPress={() => {}} activeOpacity={0.75}>
               <Text style={styles.statCount}>{preferencesCount}</Text>
@@ -247,6 +273,50 @@ export default function SavedScreen({ navigation }) {
             />
           )}
         </View>
+
+        {/* ── Profile Details ── */}
+        <View style={styles.profileSection}>
+          <Text style={[styles.sectionTitle, { color: isDark ? colors.textPrimary : '#1a1a2e' }]}>
+            Profile Details
+          </Text>
+
+          <View style={[styles.profileCard, { backgroundColor: isDark ? colors.cardBackground : '#fff', borderColor: colors.border }]}>
+            {/* Special Dates */}
+            <TouchableOpacity
+              style={styles.profileRow}
+              onPress={() => navigation.navigate('SpecialDates')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.profileIconWrap, { backgroundColor: '#FFF8E1' }]}>
+                <Text style={styles.profileEmoji}>🎂</Text>
+              </View>
+              <View style={styles.profileRowBody}>
+                <Text style={[styles.profileRowTitle, { color: colors.textPrimary }]}>Special Dates</Text>
+                <Text style={[styles.profileRowSub, { color: colors.textSecondary }]} numberOfLines={1}>{datesSub}</Text>
+              </View>
+              <Icon name="chevron-forward" size={18} color={colors.textTertiary} />
+            </TouchableOpacity>
+
+            <View style={[styles.profileDivider, { backgroundColor: colors.border }]} />
+
+            {/* Allergies & Intolerances */}
+            <TouchableOpacity
+              style={styles.profileRow}
+              onPress={() => navigation.navigate('Allergies')}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.profileIconWrap, { backgroundColor: '#FFF0F0' }]}>
+                <Icon name="warning" size={22} color="#f59e0b" />
+              </View>
+              <View style={styles.profileRowBody}>
+                <Text style={[styles.profileRowTitle, { color: colors.textPrimary }]}>Allergies & Intolerances</Text>
+                <Text style={[styles.profileRowSub, { color: colors.textSecondary }]} numberOfLines={1}>{allergiesSub}</Text>
+              </View>
+              <Icon name="chevron-forward" size={18} color={colors.textTertiary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -255,7 +325,7 @@ export default function SavedScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
-  // ── Hero ─────────────────────────────────────────────────────────────────────
+  // ── Hero ──────────────────────────────────────────────────────────────────────
   heroSection: {
     backgroundColor: '#5B4CF5',
     paddingHorizontal: 20,
@@ -302,7 +372,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
 
-  // ── Stats ────────────────────────────────────────────────────────────────────
+  // ── Stats ─────────────────────────────────────────────────────────────────────
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -330,11 +400,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.25)',
   },
 
-  // ── Grid ─────────────────────────────────────────────────────────────────────
+  // ── Category Grid ─────────────────────────────────────────────────────────────
   gridSection: {
     paddingHorizontal: 16,
     paddingTop: 24,
-    paddingBottom: 40,
+    paddingBottom: 8,
   },
   sectionTitle: {
     fontSize: 18,
@@ -349,8 +419,6 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 0,
   },
-
-  // ── Category Card ────────────────────────────────────────────────────────────
   categoryCard: {
     width: CARD_WIDTH,
     borderRadius: 18,
@@ -382,9 +450,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
   },
-  categoryEmoji: {
-    fontSize: 26,
-  },
+  categoryEmoji: { fontSize: 26 },
   categoryName: {
     fontSize: 15,
     fontWeight: '700',
@@ -396,7 +462,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // ── Empty ────────────────────────────────────────────────────────────────────
+  // ── Empty state ───────────────────────────────────────────────────────────────
   emptyState: {
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -434,5 +500,49 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+
+  // ── Profile Details ───────────────────────────────────────────────────────────
+  profileSection: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 40,
+  },
+  profileCard: {
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 15,
+    gap: 14,
+  },
+  profileIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileEmoji: { fontSize: 24 },
+  profileRowBody: { flex: 1, gap: 3 },
+  profileRowTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  profileRowSub: {
+    fontSize: 13,
+  },
+  profileDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginHorizontal: 16,
   },
 });
