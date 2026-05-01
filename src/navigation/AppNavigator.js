@@ -30,6 +30,7 @@ import SettingsScreen from '../screens/settings/SettingsScreen';
 import EditProfileScreen from '../screens/settings/EditProfileScreen';
 import CategoryScreen from '../screens/categories/CategoryScreen';
 import ChatScreen from '../screens/messages/ChatScreen';
+import MessagesScreen from '../screens/messages/MessagesScreen';
 import CollectionsScreen from '../screens/collections/CollectionsScreen';
 import CollectionDetailScreen from '../screens/collections/CollectionDetailScreen';
 import MapScreen from '../screens/map/MapScreen';
@@ -193,6 +194,7 @@ function MainStack() {
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile', ...headerStyle }} />
       <Stack.Screen name="Category" component={CategoryScreen} options={{ title: 'Category', ...headerStyle }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat', ...headerStyle }} />
+      <Stack.Screen name="Messages" component={MessagesScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Map" component={MapScreen} options={{ headerShown: false }} />
       <Stack.Screen name="TopRated" component={TopRatedScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Badges" component={BadgesScreen} options={{ headerShown: false }} />

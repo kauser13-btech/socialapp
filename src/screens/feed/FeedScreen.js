@@ -9,7 +9,6 @@ import { Loading } from '../../components/ui';
 import PreferenceCard from '../../components/preferences/PreferenceCard';
 import { feedAPI, notificationsAPI, friendsAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
 
 // ─── Dummy story data ─────────────────────────────────────────────────────────
 const RING_COLORS = [
@@ -319,7 +318,6 @@ const bdayStyles = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function FeedScreen({ navigation }) {
   const { colors, isDark } = useTheme();
-  const { user } = useAuth();
 
   const [preferences, setPreferences] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -397,13 +395,11 @@ export default function FeedScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.profileInitial, { backgroundColor: colors.primary }]}
-            onPress={() => navigation.navigate('ProfileTab')}
-            activeOpacity={0.8}
+            style={styles.notifBtn}
+            onPress={() => navigation.navigate('Messages')}
+            activeOpacity={0.7}
           >
-            <Text style={styles.profileInitialText}>
-              {(user?.first_name || user?.name || '?')[0].toUpperCase()}
-            </Text>
+            <Icon name="chatbubble-outline" size={24} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
       </View>

@@ -227,7 +227,11 @@ export default function MessagesScreen({ navigation }) {
 
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} activeOpacity={0.7}>
+          <Icon name="chevron-back" size={26} color={colors.textPrimary} />
+        </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Messages</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       {/* Search Bar */}
@@ -323,7 +327,10 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '700',
     letterSpacing: -0.5,
+    flex: 1,
+    marginLeft: 8,
   },
+  headerSpacer: { width: 26 },
 
   /* Search */
   searchBar: {
