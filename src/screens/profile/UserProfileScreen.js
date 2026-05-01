@@ -206,7 +206,7 @@ function StatItem({ value, label, onPress }) {
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function UserProfileScreen({ route, navigation }) {
   const { username }   = route.params;
-  const { user: me }   = useAuth();
+  const { user: me, logout } = useAuth();
   const { colors }     = useTheme();
   const insets         = useSafeAreaInsets();
 
@@ -418,6 +418,11 @@ export default function UserProfileScreen({ route, navigation }) {
                 <View style={[statStyles.sep, { backgroundColor: colors.gray200 }]} />
                 <StatItem value={formatCount(likedCount)}    label="Liked"    />
               </View>
+              <View style={[styles.divider, { backgroundColor: colors.gray100 }]} />
+              <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.7}>
+                <Icon name="log-out-outline" size={20} color="#ef4444" />
+                <Text style={styles.logoutText}>Log Out</Text>
+              </TouchableOpacity>
             </>
           )}
 
@@ -632,6 +637,14 @@ const styles = StyleSheet.create({
   favUpdated:     { flexDirection: 'row', alignItems: 'center', gap: 2 },
   favUpdatedText: { fontSize: fontSize.sm },
   favScroll:      { paddingVertical: 4, gap: 12 },
+
+  // Logout
+  logoutBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 14, borderRadius: 14,
+    backgroundColor: '#FFF0EE',
+  },
+  logoutText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: '#ef4444' },
 
   // Allergies
   allergySection: { gap: spacing.sm },
