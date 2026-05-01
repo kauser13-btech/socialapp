@@ -280,9 +280,9 @@ export const groupsAPI = {
 
 // Notifications API
 export const notificationsAPI = {
-  list: () => api.get('/notifications'),
-  markAsRead: (id) => api.put(`/notifications/${id}/read`),
-  markAllAsRead: () => api.put('/notifications/read-all'),
+  list: (page = 1) => api.get(`/notifications?page=${page}`),
+  markAsRead: (id) => api.post(`/notifications/${id}/read`),
+  markAllAsRead: () => api.post('/notifications/read-all'),
   getUnreadCount: () => api.get('/notifications/unread-count'),
   delete: (id) => api.delete(`/notifications/${id}`),
 };
