@@ -146,7 +146,7 @@ function StoryBubble({ group, index, isYou, onPress, colors, isDark }) {
 
 function StoriesStrip({ colors, isDark, navigation }) {
   const handleYouPress = () => {
-    navigation.navigate('CreateStory', { onCreated: () => {} });
+    navigation.navigate('CreateStory', { onCreated: () => { } });
   };
 
   const handleGroupPress = (group) => {
@@ -237,7 +237,7 @@ function BirthdayStrip({ birthdays, colors, isDark, onWish, onPress }) {
         <Text style={[bdayStyles.title, { color: colors.textPrimary }]}>Upcoming Birthdays</Text>
       </View>
       {birthdays.map(b => {
-        const dayWord   = b.days_until === 1 ? 'day' : 'days';
+        const dayWord = b.days_until === 1 ? 'day' : 'days';
         const whenLabel = b.is_today
           ? "🎉 It's their birthday today!"
           : `🗓 In ${b.days_until} ${dayWord}`;
@@ -332,10 +332,10 @@ export default function FeedScreen({ navigation }) {
     loadFeed(1);
     notificationsAPI.getUnreadCount().then(res => {
       if (res.success) setUnreadCount(res.data?.count ?? 0);
-    }).catch(() => {});
+    }).catch(() => { });
     friendsAPI.getBirthdays().then(res => {
       if (res.success) setBirthdays(res.data.birthdays || []);
-    }).catch(() => {});
+    }).catch(() => { });
   }, []);
 
   const loadFeed = async (page = 1) => {
@@ -376,7 +376,7 @@ export default function FeedScreen({ navigation }) {
       {/* Header */}
       <View style={styles.header}>
         <Image
-          source={require('../../../assets/logo_icon.png')}
+          source={require('../../../assets/logo_text.png')}
           style={styles.logoImage}
           resizeMode="contain"
         />
@@ -421,6 +421,7 @@ export default function FeedScreen({ navigation }) {
 
       {/* Feed */}
       <FlatList
+        style={{ backgroundColor: "#F2F2F7" }}
         data={preferences}
         renderItem={({ item }) => <PreferenceCard preference={item} onUpdate={() => loadFeed(1)} />}
         keyExtractor={(item) => item.id.toString()}
@@ -489,7 +490,7 @@ const styles = StyleSheet.create({
   profileInitialText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   /* List */
-  list: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 100 },
+  list: { paddingTop: 8, paddingBottom: 10 },
 
   /* Empty */
   emptyContainer: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingTop: 60 },

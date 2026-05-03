@@ -62,7 +62,7 @@ export default function LoginScreen({ navigation }) {
           {/* Brand */}
           <View style={s.brand}>
             <Image
-              source={require('../../../assets/logo_full.png')}
+              source={require('../../../assets/logo_icon.png')}
               style={s.logoImage}
               resizeMode="contain"
             />
