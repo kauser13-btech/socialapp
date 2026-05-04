@@ -1,230 +1,16 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, ScrollView, Image,
+  RefreshControl, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Loading } from '../../components/ui';
 import PreferenceCard from '../../components/preferences/PreferenceCard';
+import StoriesRow from '../../components/stories/StoriesRow';
 import { feedAPI, notificationsAPI, friendsAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
 
-// ─── Dummy story data ─────────────────────────────────────────────────────────
-const RING_COLORS = [
-  '#f97316', '#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ec4899',
-];
-
-const DUMMY_STORY_GROUPS = [
-  {
-    user: { id: 1, first_name: 'Sarah', name: 'Sarah Chen' },
-    all_viewed: false,
-    stories: [
-      {
-        id: 101, emoji: '📚', title: 'The Midnight Library', author: 'Matt Haig',
-        category: 'Books', rating: 4.9,
-        quote: 'This book changed how I think about the choices we make. Absolutely beautiful.',
-        caption: 'Currently reading and absolutely hooked! 📖',
-        views_count: 24, created_at: Date.now() - 1000 * 60 * 5,
-        viewers: [
-          { id: 2, name: 'Alex', time: '2m ago' },
-          { id: 3, name: 'Jordan', time: '4m ago' },
-        ],
-      },
-      {
-        id: 102, emoji: '☕', title: 'Blue Bottle Coffee', author: 'Oakland, CA',
-        category: 'Coffee', rating: 4.7,
-        quote: 'The single origin Ethiopia pour-over is transcendent.',
-        caption: 'My morning ritual ☕',
-        views_count: 18, created_at: Date.now() - 1000 * 60 * 30,
-        viewers: [{ id: 4, name: 'Emma', time: '25m ago' }],
-      },
-    ],
-  },
-  {
-    user: { id: 2, first_name: 'Alex', name: 'Alex Rivera' },
-    all_viewed: false,
-    stories: [
-      {
-        id: 201, emoji: '🎵', title: 'After Hours', author: 'The Weeknd',
-        category: 'Music', rating: 4.8,
-        quote: "Blinding Lights still gives me chills every single time.",
-        caption: 'Album of the decade, no debate 🔥',
-        views_count: 41, created_at: Date.now() - 1000 * 60 * 15,
-        viewers: [
-          { id: 1, name: 'Sarah', time: '10m ago' },
-          { id: 3, name: 'Jordan', time: '12m ago' },
-          { id: 5, name: 'Marcus', time: '14m ago' },
-        ],
-      },
-    ],
-  },
-  {
-    user: { id: 3, first_name: 'Jordan', name: 'Jordan Kim' },
-    all_viewed: true,
-    stories: [
-      {
-        id: 301, emoji: '🍜', title: 'Momofuku Noodle Bar', author: 'New York',
-        category: 'Food', rating: 4.6,
-        quote: 'The pork belly ramen is life-changing. Worth every penny.',
-        caption: 'Best bowl I have had all year 🍜',
-        views_count: 33, created_at: Date.now() - 1000 * 60 * 60 * 2,
-        viewers: [],
-      },
-    ],
-  },
-  {
-    user: { id: 4, first_name: 'Emma', name: 'Emma Walsh' },
-    all_viewed: false,
-    stories: [
-      {
-        id: 401, emoji: '🎬', title: 'Dune: Part Two', author: 'Denis Villeneuve',
-        category: 'Movies', rating: 4.9,
-        quote: 'Visually stunning. The sandworm scenes are unlike anything else.',
-        caption: 'Go see this in IMAX. Trust me.',
-        views_count: 57, created_at: Date.now() - 1000 * 60 * 45,
-        viewers: [{ id: 5, name: 'Marcus', time: '40m ago' }],
-      },
-      {
-        id: 402, emoji: '🧘', title: 'Headspace', author: 'Meditation App',
-        category: 'Wellness', rating: 4.5,
-        quote: '10 minutes a day has genuinely changed my mornings.',
-        caption: 'My anxiety toolkit 🌿',
-        views_count: 29, created_at: Date.now() - 1000 * 60 * 50,
-        viewers: [],
-      },
-    ],
-  },
-  {
-    user: { id: 5, first_name: 'Marcus', name: 'Marcus Lee' },
-    all_viewed: false,
-    stories: [
-      {
-        id: 501, emoji: '🏋️', title: 'Atom Gym', author: 'Brooklyn, NY',
-        category: 'Fitness', rating: 4.7,
-        quote: 'Great equipment, zero egos. This is my second home.',
-        caption: 'Found my gym 💪',
-        views_count: 19, created_at: Date.now() - 1000 * 60 * 20,
-        viewers: [],
-      },
-    ],
-  },
-];
-
-// ─── Stories Strip ────────────────────────────────────────────────────────────
-function ringBorderColor({ isYou, viewed, ringColor, colors }) {
-  if (isYou) return { borderColor: colors.primary, borderStyle: 'dashed' };
-  if (viewed) return { borderColor: colors.textSecondary };
-  return { borderColor: ringColor };
-}
-
-function StoryBubble({ group, index, isYou, onPress, colors, isDark }) {
-  const ringColor = RING_COLORS[index % RING_COLORS.length];
-  const name = isYou ? 'Your Story' : (group.user.first_name || group.user.name);
-  const initial = name[0].toUpperCase();
-  const viewed = !isYou && group.all_viewed;
-
-  return (
-    <TouchableOpacity style={storyStyles.bubble} onPress={onPress} activeOpacity={0.8}>
-      <View style={[storyStyles.ringOuter, ringBorderColor({ isYou, viewed, ringColor, colors })]}>
-        {isYou ? (
-          <View style={[storyStyles.avatar, { backgroundColor: isDark ? colors.cardBackground : '#f0f0f5' }]}>
-            <Icon name="add" size={24} color={colors.primary} />
-          </View>
-        ) : (
-          <View style={[storyStyles.avatar, { backgroundColor: viewed ? colors.border : ringColor }]}>
-            <Text style={storyStyles.initial}>{initial}</Text>
-          </View>
-        )}
-      </View>
-      <Text style={[storyStyles.label, { color: colors.textSecondary }]} numberOfLines={1}>
-        {name}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
-function StoriesStrip({ colors, isDark, navigation }) {
-  const handleYouPress = () => {
-    navigation.navigate('CreateStory', { onCreated: () => { } });
-  };
-
-  const handleGroupPress = (group) => {
-    navigation.navigate('StoryViewer', {
-      groups: DUMMY_STORY_GROUPS,
-      startUserId: group.user.id,
-    });
-  };
-
-  return (
-    <View style={[storyStyles.strip, { borderBottomColor: colors.border }]}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={storyStyles.scroll}>
-        {/* Your Story bubble */}
-        <StoryBubble
-          isYou
-          index={0}
-          onPress={handleYouPress}
-          colors={colors}
-          isDark={isDark}
-        />
-        {/* Friend story bubbles */}
-        {DUMMY_STORY_GROUPS.map((group, index) => (
-          <StoryBubble
-            key={group.user.id}
-            group={group}
-            index={index + 1}
-            onPress={() => handleGroupPress(group)}
-            colors={colors}
-            isDark={isDark}
-          />
-        ))}
-      </ScrollView>
-    </View>
-  );
-}
-
-const storyStyles = StyleSheet.create({
-  strip: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingBottom: 12,
-    paddingTop: 4,
-  },
-  scroll: {
-    paddingHorizontal: 16,
-    gap: 14,
-  },
-  bubble: {
-    alignItems: 'center',
-    width: 68,
-  },
-  ringOuter: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
-    borderWidth: 2.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 5,
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initial: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: '700',
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '500',
-    textAlign: 'center',
-    maxWidth: 66,
-  },
-});
 
 // ─── Birthday Strip ────────────────────────────────────────────────────────────
 function BirthdayStrip({ birthdays, colors, isDark, onWish, onPress }) {
@@ -405,7 +191,7 @@ export default function FeedScreen({ navigation }) {
       </View>
 
       {/* Stories */}
-      <StoriesStrip colors={colors} isDark={isDark} navigation={navigation} />
+      <StoriesRow navigation={navigation} />
 
       {/* Birthday strip */}
       <BirthdayStrip

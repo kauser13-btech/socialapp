@@ -6,19 +6,26 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { storiesAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
-import { useAuth } from '../../contexts/AuthContext';
+
+const CIRCLE_SIZE = 64;
 
 // ─── Single story circle ──────────────────────────────────────────────────────
-function StoryCircle({ group, onPress, colors, isOwn }) {
-  const user    = group.user;
-  const allSeen = group.all_viewed;
+function StoryCircle({ group, onPress, onLongPress, colors, isOwn }) {
+  const user      = group.user;
+  const allSeen   = group.all_viewed;
   const ringColor = allSeen ? colors.border : colors.primary;
   const avatarUrl = user?.avatar_url;
+  const label     = isOwn ? 'Your story' : (user?.first_name || user?.username || 'User');
 
   return (
-    <TouchableOpacity style={styles.circle} onPress={() => onPress(group)} activeOpacity={0.8}>
-      {/* Ring */}
-      <View style={[styles.ring, { borderColor: ringColor }]}>
+    <TouchableOpacity
+      style={styles.circle}
+      onPress={() => onPress(group)}
+      onLongPress={onLongPress}
+      delayLongPress={300}
+      activeOpacity={0.8}
+    >
+      <View style={[styles.ring, { borderColor: isOwn ? colors.primary : ringColor }]}>
         {avatarUrl ? (
           <Image source={{ uri: avatarUrl }} style={styles.avatar} />
         ) : (
@@ -28,20 +35,25 @@ function StoryCircle({ group, onPress, colors, isOwn }) {
             </Text>
           </View>
         )}
+        {/* Plus badge: tap = view, long-press = add new */}
+        {isOwn && (
+          <View style={[styles.plusBadge, { backgroundColor: colors.primary }]}>
+            <Icon name="add" size={12} color="#fff" />
+          </View>
+        )}
       </View>
-      {/* Username */}
       <Text style={[styles.username, { color: colors.textSecondary }]} numberOfLines={1}>
-        {isOwn ? 'Your story' : (user?.first_name || user?.username || 'User')}
+        {label}
       </Text>
     </TouchableOpacity>
   );
 }
 
-// ─── Add story button ─────────────────────────────────────────────────────────
-function AddStoryButton({ onPress, colors, hasStory }) {
+// ─── Add story button (shown only when user has no story yet) ─────────────────
+function AddStoryButton({ onPress, colors }) {
   return (
     <TouchableOpacity style={styles.circle} onPress={onPress} activeOpacity={0.8}>
-      <View style={[styles.ring, { borderColor: hasStory ? colors.primary : colors.border }]}>
+      <View style={[styles.ring, { borderColor: colors.border, borderStyle: 'dashed' }]}>
         <View style={[styles.addAvatar, { backgroundColor: colors.primary + '15' }]}>
           <Icon name="add" size={28} color={colors.primary} />
         </View>
@@ -56,32 +68,33 @@ function AddStoryButton({ onPress, colors, hasStory }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function StoriesRow({ navigation }) {
   const { colors } = useTheme();
-  const { user }   = useAuth();
-  const [groups, setGroups]   = useState([]);
+  const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Re-fetch every time the screen comes into focus so a newly created
+  // story is always reflected when returning from CreateStory.
   useFocusEffect(useCallback(() => {
+    let active = true;
     storiesAPI.list()
-      .then(r => { if (r.success) setGroups(r.data.groups || []); })
+      .then(r => { if (active && r.success) setGroups(r.data.groups || []); })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, []));
 
-  const ownGroup = groups.find(g => g.is_own);
+  const ownGroup  = groups.find(g => g.is_own);
+  const otherGroups = groups.filter(g => !g.is_own);
 
   const handleCirclePress = (group) => {
     navigation.navigate('StoryViewer', { groups, startUserId: group.user.id });
   };
 
+  const handleStoryCreated = (newGroup) => {
+    setGroups(prev => [newGroup, ...prev.filter(g => !g.is_own)]);
+  };
+
   const handleAddPress = () => {
-    if (ownGroup) {
-      // Already has stories — open own story viewer
-      navigation.navigate('StoryViewer', { groups, startUserId: user?.id });
-    } else {
-      navigation.navigate('CreateStory', {
-        onCreated: (newGroup) => setGroups(prev => [newGroup, ...prev]),
-      });
-    }
+    navigation.navigate('CreateStory', { onCreated: handleStoryCreated });
   };
 
   if (loading) {
@@ -99,31 +112,34 @@ export default function StoriesRow({ navigation }) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.row}
       >
-        {/* Add / own story button always first */}
-        <AddStoryButton
-          onPress={handleAddPress}
-          colors={colors}
-          hasStory={!!ownGroup}
-        />
+        {/* Own story: tap = view, long-press = add new story. No story yet = + button */}
+        {ownGroup ? (
+          <StoryCircle
+            group={ownGroup}
+            onPress={handleCirclePress}
+            onLongPress={handleAddPress}
+            colors={colors}
+            isOwn
+          />
+        ) : (
+          <AddStoryButton onPress={handleAddPress} colors={colors} />
+        )}
 
         {/* Other users' stories */}
-        {groups
-          .filter(g => !g.is_own)
-          .map(g => (
-            <StoryCircle
-              key={g.user.id}
-              group={g}
-              onPress={handleCirclePress}
-              colors={colors}
-              isOwn={false}
-            />
-          ))}
+        {otherGroups.map(g => (
+          <StoryCircle
+            key={g.user.id}
+            group={g}
+            onPress={handleCirclePress}
+            onLongPress={null}
+            colors={colors}
+            isOwn={false}
+          />
+        ))}
       </ScrollView>
     </View>
   );
 }
-
-const CIRCLE_SIZE = 64;
 
 const styles = StyleSheet.create({
   container: {
@@ -171,6 +187,18 @@ const styles = StyleSheet.create({
     borderRadius: CIRCLE_SIZE / 2,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  plusBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
   },
   username: {
     fontSize: 11,

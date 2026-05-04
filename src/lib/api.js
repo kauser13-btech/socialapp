@@ -397,11 +397,14 @@ export const collectionsAPI = {
 
 // Analytics API
 export const storiesAPI = {
-  list:    () => api.get('/stories'),
-  create:  (file, caption) => api.upload('/stories', file, 'image', { caption }),
-  view:    (id) => api.post(`/stories/${id}/view`),
-  viewers: (id) => api.get(`/stories/${id}/viewers`),
-  delete:  (id) => api.delete(`/stories/${id}`),
+  list:           () => api.get('/stories'),
+  create:         (file, caption, visibility = 'friends') =>
+    api.upload('/stories', file, 'image', { caption, visibility }),
+  createFromCard: (preferenceId, caption, visibility = 'friends') =>
+    api.post('/stories', { preference_id: preferenceId, caption, visibility }),
+  view:           (id) => api.post(`/stories/${id}/view`),
+  viewers:        (id) => api.get(`/stories/${id}/viewers`),
+  delete:         (id) => api.delete(`/stories/${id}`),
 };
 
 export const analyticsAPI = {
