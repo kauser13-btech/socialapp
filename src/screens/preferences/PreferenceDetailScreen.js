@@ -58,7 +58,7 @@ function FriendsWhoLoveThis({ cardBackground, textPrimary, textSecondary }) {
   const extra = DUMMY_TOTAL - preview.length;
   return (
     <View style={fStyles.section}>
-      <Text style={[fStyles.label, { color: textPrimary }]}>
+      <Text style={[fStyles.label, { color: textSecondary }]}>
         {DUMMY_TOTAL} friends also love this
       </Text>
       <View style={fStyles.row}>
@@ -75,12 +75,10 @@ function FriendsWhoLoveThis({ cardBackground, textPrimary, textSecondary }) {
         ))}
         <View
           style={[
-            fStyles.avatar,
-            fStyles.extraBubble,
-            { left: preview.length * 26, zIndex: 0, borderColor: cardBackground },
+            { left: preview.length * 30, zIndex: 0, borderColor: cardBackground },
           ]}
         >
-          <Text style={[fStyles.extraText, { color: textSecondary }]}>+{extra}</Text>
+          <Text style={[fStyles.extraText, { color: textSecondary }]}>+{extra} more</Text>
         </View>
         {/* spacer so row has measurable width */}
         <View style={{ width: preview.length * 26 + 58 }} />
@@ -104,7 +102,7 @@ const fStyles = StyleSheet.create({
   },
   avatarText: { color: '#fff', fontSize: 13, fontWeight: '700' },
   extraBubble: { backgroundColor: '#e5e7eb' },
-  extraText: { fontSize: 11, fontWeight: '700' },
+  extraText: { fontSize: 14, fontWeight: '600' },
 });
 
 const DUMMY_SIMILAR = [
@@ -117,7 +115,9 @@ const DUMMY_SIMILAR = [
 
 function SimilarItems({ categoryName, textPrimary }) {
   return (
-    <View style={sStyles.section}>
+    <View style={{
+      padding: 16,
+    }}>
       <Text style={[sStyles.title, { color: textPrimary }]}>
         Similar {categoryName || 'Items'} Friends Love
       </Text>
@@ -130,22 +130,19 @@ function SimilarItems({ categoryName, textPrimary }) {
           <View key={item.id} style={sStyles.card}>
             {/* Thumbnail with text embedded */}
             <View style={[sStyles.thumb, { backgroundColor: item.gradient[0] }]}>
-              <View style={[sStyles.thumbOverlay, { backgroundColor: item.gradient[1] }]} />
+              <View style={{ backgroundColor: '#ffffff' }} />
               {/* Dark gradient scrim at bottom */}
-              <View style={sStyles.thumbScrim} />
+              {/* <View style={sStyles.thumbScrim} /> */}
               <View style={sStyles.thumbContent}>
                 <Text style={sStyles.thumbTitle} numberOfLines={2}>{item.title}</Text>
-                <Text style={sStyles.thumbAuthor} numberOfLines={1}>{item.author}</Text>
-                <View style={sStyles.friendsRow}>
-                  <Icon name="people" size={11} color="rgba(255,255,255,0.85)" />
-                  <Text style={sStyles.friendsText}>{item.friends} friends</Text>
-                </View>
+                <Text style={sStyles.thumbAuthor} numberOfLines={2}>{item.author} . {item.friends} friends</Text>
               </View>
             </View>
           </View>
-        ))}
-      </ScrollView>
-    </View>
+        ))
+        }
+      </ScrollView >
+    </View >
   );
 }
 
@@ -156,25 +153,24 @@ const sStyles = StyleSheet.create({
   card: { width: 140 },
   thumb: {
     width: 140,
-    height: 190,
+    height: 170,
     borderRadius: 16,
     overflow: 'hidden',
   },
-  thumbOverlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    opacity: 0.45,
-  },
+
   thumbScrim: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     height: '55%',
     backgroundColor: 'rgba(0,0,0,0.52)',
   },
   thumbContent: {
+    backgroundColor: '#fff',
     position: 'absolute', bottom: 0, left: 0, right: 0,
     padding: 10,
+    height: '40%',
   },
-  thumbTitle: { color: '#fff', fontSize: 13, fontWeight: '700', lineHeight: 17, marginBottom: 3 },
-  thumbAuthor: { color: 'rgba(255,255,255,0.78)', fontSize: 11, fontWeight: '500', marginBottom: 5 },
+  thumbTitle: { fontSize: 13, fontWeight: '700', lineHeight: 17, marginBottom: 3 },
+  thumbAuthor: { color: 'rgba(173, 173, 173)', fontSize: 11, fontWeight: '500', marginBottom: 5 },
   friendsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   friendsText: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '600' },
 });
@@ -301,10 +297,9 @@ export default function PreferenceDetailScreen({ route }) {
               resizeMode="cover"
             />
           ) : (
-            <View style={[styles.heroImage, { height: heroHeight, backgroundColor: catMeta.gradient[0] }]}>
-              <View style={[styles.heroGradientLayer, { backgroundColor: catMeta.gradient[1] }]} />
-            </View>
-          )}
+            <View style={[styles.heroImage, { height: heroHeight, backgroundColor: catMeta.gradient[0] }]} />
+          )
+          }
 
           {/* Dark overlay */}
           <View style={styles.heroOverlay} />
@@ -331,36 +326,41 @@ export default function PreferenceDetailScreen({ route }) {
         {/* ── White content card ── */}
         <View style={[styles.contentCard, { backgroundColor: colors.cardBackground }]}>
 
-          {/* Title */}
-          <Text style={[styles.title, { color: colors.textPrimary }]}>
-            {preference.title}
-          </Text>
+          <View style={styles.contentBlock}>
 
-          {/* Subtitle row: author · year · type */}
-          {(preference.author || preference.year || preference.subtitle) && (
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              {[preference.author, preference.year, preference.subtitle]
-                .filter(Boolean)
-                .join(' · ')}
+
+            {/* Title */}
+            <Text style={[styles.title, { color: colors.textPrimary }]}>
+              {preference.title}
             </Text>
-          )}
 
-          <View style={[styles.divider, { backgroundColor: colors.border }]} />
-
-          {/* Rating row */}
-          {preference.rating ? (
-            <View style={styles.ratingRow}>
-              <Text style={[styles.ratingLabel, { color: colors.textSecondary }]}>
-                YOUR RATING
+            {/* Subtitle row: author · year · type */}
+            {(preference.author || preference.year || preference.subtitle) && (
+              <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+                {[preference.author, preference.year, preference.subtitle]
+                  .filter(Boolean)
+                  .join(' · ')}
               </Text>
-              <View style={styles.starsRow}>
-                {renderStars(preference.rating)}
+            )}
+
+            <View style={[styles.divider, { backgroundColor: colors.border }]} />
+
+            {/* Rating row */}
+            {preference.rating ? (
+              <View style={styles.ratingRow}>
+                <Text style={[styles.ratingLabel, { color: colors.textSecondary }]}>
+                  YOUR RATING
+                </Text>
+                <View style={styles.starsRow}>
+                  {renderStars(preference.rating)}
+                </View>
+                <Text style={[styles.addedDate, { color: colors.textSecondary }]}>
+                  {formatAddedDate(preference.created_at)}
+                </Text>
               </View>
-              <Text style={[styles.addedDate, { color: colors.textSecondary }]}>
-                {formatAddedDate(preference.created_at)}
-              </Text>
-            </View>
-          ) : null}
+            ) : null}
+          </View>
+
 
           {/* Note section */}
           {preference.description ? (
@@ -373,10 +373,18 @@ export default function PreferenceDetailScreen({ route }) {
           ) : null}
 
           {/* Current Favorite toggle */}
-          <View style={[styles.favoriteRow, { borderColor: colors.border }]}>
+          <View style={[
+            styles.favoriteRow,
+            { borderBottomWidth: 1, borderBottomColor: isFavorite ? '#ef4444' : colors.border },
+            isFavorite && { backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2' }
+          ]}>
             <View style={styles.favoriteLeft}>
-              <View style={[styles.favoriteIconWrap, { backgroundColor: '#fee2e2' }]}>
-                <Icon name="heart" size={18} color="#ef4444" />
+              <View style={styles.favoriteIconWrap}>
+                <Icon
+                  name={isFavorite ? 'heart' : 'heart-outline'}
+                  size={32}
+                  color={isFavorite ? '#ef4444' : colors.textSecondary}
+                />
               </View>
               <View style={styles.favoriteMeta}>
                 <Text style={[styles.favoriteTitle, { color: colors.textPrimary }]}>
@@ -387,6 +395,8 @@ export default function PreferenceDetailScreen({ route }) {
                 </Text>
               </View>
             </View>
+
+
             {favoriteLoading ? (
               <ActivityIndicator size="small" color={colors.primary} />
             ) : (
@@ -400,38 +410,61 @@ export default function PreferenceDetailScreen({ route }) {
             )}
           </View>
 
+
           {/* Friends who love this */}
-          <FriendsWhoLoveThis cardBackground={colors.cardBackground} textPrimary={colors.textPrimary} textSecondary={colors.textSecondary} />
-
-          {/* Action buttons */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnOutline, { borderColor: colors.border }]}
-              onPress={handleEditNote}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.actionBtnText, { color: colors.textPrimary }]}>Edit Note</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnPrimary, { backgroundColor: colors.primary }]}
-              onPress={handleShareToFeed}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.actionBtnText, { color: '#fff' }]}>Share to Feed</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnOutline, { borderColor: colors.border }]}
-              onPress={handleRemove}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.actionBtnText, { color: '#ef4444' }]}>Remove</Text>
-            </TouchableOpacity>
+          <View style={{
+            paddingHorizontal: 20,
+            paddingVertical: 16,
+          }}>
+            <FriendsWhoLoveThis
+              cardBackground={colors.cardBackground}
+              textPrimary={colors.textPrimary}
+              textSecondary={colors.textSecondary} />
           </View>
 
-          {/* Similar items */}
-          <SimilarItems categoryName={preference.category?.name} textPrimary={colors.textPrimary} />
+
+          <View style={{
+            paddingVertical: 16,
+            backgroundColor: "#f4f4f4",
+
+          }}>
+
+            {/* Action buttons */}
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnOutline, { backgroundColor: "#edededff", borderColor: colors.border }]}
+                onPress={handleEditNote}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.actionBtnText, { color: colors.textPrimary }]}>Edit Note</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnPrimary, { backgroundColor: colors.primary }]}
+                onPress={handleShareToFeed}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.actionBtnText, { color: '#fff' }]}>Share to Feed</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnOutline, { backgroundColor: "#fff0f0ff", borderColor: "#ffe1e1ff" }]}
+                onPress={handleRemove}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.actionBtnText, { color: '#ef4444' }]}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Similar items */}
+            <SimilarItems
+              style={{ padding: 16 }}
+              categoryName={preference.category?.name}
+              textPrimary={colors.textPrimary}
+            />
+
+          </View>
+
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -442,7 +475,7 @@ const HERO_HEIGHT = 260;
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  scrollContent: { paddingBottom: 40 },
+  scrollContent: {},
 
   /* Hero */
   heroContainer: {
@@ -455,10 +488,8 @@ const styles = StyleSheet.create({
     height: HERO_HEIGHT,
     borderRadius: 0,
   },
-  heroGradientLayer: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    opacity: 0.55,
-  },
+
+  // TODO: Need gradent
   heroOverlay: {
     position: 'absolute',
     top: 0,
@@ -466,6 +497,8 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: '#090979',
+    // background: linear-gradient(0deg,rgba(9, 9, 121, 1) 0%, rgba(87, 87, 222, 1) 97%);
+
     opacity: 0.3,
   },
   backBtn: {
@@ -487,13 +520,12 @@ const styles = StyleSheet.create({
 
   /* Content card */
   contentCard: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    marginTop: -20,
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 8,
     minHeight: 200,
+  },
+
+  contentBlock: {
+    paddingVertical: 12,
+    paddingHorizontal: 20,
   },
 
   /* Category pill — overlaid on hero image */
@@ -537,8 +569,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   ratingLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
@@ -553,13 +585,14 @@ const styles = StyleSheet.create({
 
   /* Note */
   noteCard: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderColor: '#c55200',
+    paddingVertical: 14,
+    paddingHorizontal: 18,
   },
+
   noteLabel: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 1,
     textTransform: 'uppercase',
@@ -568,7 +601,6 @@ const styles = StyleSheet.create({
   noteText: {
     fontSize: 14,
     lineHeight: 22,
-    fontStyle: 'italic',
   },
 
   /* Favorite toggle */
@@ -576,11 +608,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
+
   favoriteLeft: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -588,9 +619,6 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   favoriteIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -601,12 +629,15 @@ const styles = StyleSheet.create({
   /* Actions */
   actionRow: {
     flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    backgroundColor: "#fff",
     gap: 8,
-    marginBottom: 24,
+
   },
   actionBtn: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',

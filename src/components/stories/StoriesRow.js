@@ -11,11 +11,11 @@ const CIRCLE_SIZE = 64;
 
 // ─── Single story circle ──────────────────────────────────────────────────────
 function StoryCircle({ group, onPress, onLongPress, colors, isOwn }) {
-  const user      = group.user;
-  const allSeen   = group.all_viewed;
+  const user = group.user;
+  const allSeen = group.all_viewed;
   const ringColor = allSeen ? colors.border : colors.primary;
   const avatarUrl = user?.avatar_url;
-  const label     = isOwn ? 'Your story' : (user?.first_name || user?.username || 'User');
+  const label = isOwn ? 'Your story' : (user?.first_name || user?.username || 'User');
 
   return (
     <TouchableOpacity
@@ -77,12 +77,12 @@ export default function StoriesRow({ navigation }) {
     let active = true;
     storiesAPI.list()
       .then(r => { if (active && r.success) setGroups(r.data.groups || []); })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []));
 
-  const ownGroup  = groups.find(g => g.is_own);
+  const ownGroup = groups.find(g => g.is_own);
   const otherGroups = groups.filter(g => !g.is_own);
 
   const handleCirclePress = (group) => {
