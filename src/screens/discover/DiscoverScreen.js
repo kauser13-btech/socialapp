@@ -23,18 +23,18 @@ const CARD_WIDTH = (SCREEN_WIDTH - 16 * 2 - CARD_GAP) / 2;
 
 // ─── Category config ──────────────────────────────────────────────────────────
 const CATEGORY_META = {
-  all:      { emoji: '✨', label: 'All',      gradient: ['#6B63F5', '#9B89FA'] },
-  food:     { emoji: '🍽️', label: 'Food',     gradient: ['#f43f5e', '#fb7185'] },
-  travel:   { emoji: '✈️', label: 'Travel',   gradient: ['#0ea5e9', '#38bdf8'] },
-  film:     { emoji: '🎬', label: 'Film',     gradient: ['#8b5cf6', '#a78bfa'] },
-  music:    { emoji: '🎵', label: 'Music',    gradient: ['#a855f7', '#c084fc'] },
-  books:    { emoji: '📚', label: 'Books',    gradient: ['#6366f1', '#818cf8'] },
-  fitness:  { emoji: '💪', label: 'Fitness',  gradient: ['#10b981', '#34d399'] },
-  tech:     { emoji: '💻', label: 'Tech',     gradient: ['#64748b', '#94a3b8'] },
-  games:    { emoji: '🎮', label: 'Games',    gradient: ['#f59e0b', '#fbbf24'] },
+  all: { emoji: '✨', label: 'All', gradient: ['#6B63F5', '#9B89FA'] },
+  food: { emoji: '🍽️', label: 'Food', gradient: ['#f43f5e', '#fb7185'] },
+  travel: { emoji: '✈️', label: 'Travel', gradient: ['#0ea5e9', '#38bdf8'] },
+  film: { emoji: '🎬', label: 'Film', gradient: ['#8b5cf6', '#a78bfa'] },
+  music: { emoji: '🎵', label: 'Music', gradient: ['#a855f7', '#c084fc'] },
+  books: { emoji: '📚', label: 'Books', gradient: ['#6366f1', '#818cf8'] },
+  fitness: { emoji: '💪', label: 'Fitness', gradient: ['#10b981', '#34d399'] },
+  tech: { emoji: '💻', label: 'Tech', gradient: ['#64748b', '#94a3b8'] },
+  games: { emoji: '🎮', label: 'Games', gradient: ['#f59e0b', '#fbbf24'] },
   wellness: { emoji: '🧘', label: 'Wellness', gradient: ['#ec4899', '#f472b6'] },
-  art:      { emoji: '🎨', label: 'Art',      gradient: ['#06b6d4', '#22d3ee'] },
-  coffee:   { emoji: '☕', label: 'Coffee',   gradient: ['#92400e', '#b45309'] },
+  art: { emoji: '🎨', label: 'Art', gradient: ['#06b6d4', '#22d3ee'] },
+  coffee: { emoji: '☕', label: 'Coffee', gradient: ['#92400e', '#b45309'] },
 };
 
 function getCategoryMeta(name) {
@@ -62,31 +62,14 @@ function DiscoverCard({ item, onPress }) {
       {/* ── Base gradient colour ── */}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: c1 }]} />
 
-      {/* ── Top-right highlight (simulates diagonal gradient) ── */}
-      <View style={[cardStyles.highlightTopRight, { backgroundColor: c2 }]} />
-
-      {/* ── Bottom-left warm tint ── */}
-      <View style={[cardStyles.tintBottomLeft, { backgroundColor: c1 }]} />
-
-      {/* ── Top shine ── */}
-      <View style={cardStyles.shine} />
-
-      {/* ── Bottom scrim so text is always readable ── */}
-      <View style={cardStyles.scrim} />
-
       {/* ── Category badge ── */}
       <View style={cardStyles.categoryBadge}>
         <Text style={cardStyles.categoryEmoji}>{meta.emoji}</Text>
         <Text style={cardStyles.categoryLabel}>{item.category?.name || meta.label}</Text>
       </View>
 
-      {/* ── Big centred emoji ── */}
-      <View style={cardStyles.emojiWrap}>
-        <Text style={cardStyles.bigEmoji}>{meta.emoji}</Text>
-      </View>
-
-      {/* ── Text overlay at bottom ── */}
-      <View style={cardStyles.info}>
+      {/* ── Bottom scrim so text is always readable ── */}
+      <View style={cardStyles.scrim}>
         <Text style={cardStyles.title} numberOfLines={2}>{item.title}</Text>
         {subtitle ? (
           <Text style={cardStyles.subtitle} numberOfLines={1}>{subtitle}</Text>
@@ -94,15 +77,23 @@ function DiscoverCard({ item, onPress }) {
         <View style={cardStyles.meta}>
           {rating ? (
             <View style={cardStyles.ratingRow}>
-              <Icon name="star" size={11} color="#ffd700" />
-              <Text style={cardStyles.ratingText}>{rating}</Text>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <Icon
+                  key={star}
+                  name="star"
+                  size={11}
+                  color={star <= rating ? '#ffd700' : '#d1d5db'}
+                />
+              ))}
             </View>
           ) : null}
-          {friendsCount > 0 ? (
+
+          {friendsCount > -1 ? (
             <Text style={cardStyles.friendsText}>{friendsCount} friends</Text>
           ) : null}
         </View>
       </View>
+
     </TouchableOpacity>
   );
 }
@@ -116,51 +107,16 @@ const cardStyles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
     marginBottom: CARD_GAP,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.22,
-    shadowRadius: 12,
-    elevation: 8,
   },
 
-  /* gradient simulation layers */
-  highlightTopRight: {
-    position: 'absolute',
-    top: -CARD_HEIGHT * 0.4,
-    left: CARD_WIDTH * 0.3,
-    bottom: 0,
-    right: 0,
-    borderRadius: CARD_HEIGHT,
-    opacity: 0.55,
-    transform: [{ scaleX: 1.4 }],
-  },
-  tintBottomLeft: {
-    position: 'absolute',
-    top: CARD_HEIGHT * 0.5,
-    left: 0,
-    right: CARD_WIDTH * 0.2,
-    bottom: 0,
-    borderRadius: CARD_HEIGHT,
-    opacity: 0.3,
-    transform: [{ scaleX: 1.3 }],
-  },
-  shine: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: CARD_HEIGHT * 0.38,
-    backgroundColor: 'rgba(255,255,255,0.14)',
-    borderBottomLeftRadius: CARD_WIDTH,
-    borderBottomRightRadius: CARD_WIDTH,
-  },
   scrim: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: CARD_HEIGHT * 0.52,
-    backgroundColor: 'rgba(0,0,0,0.38)',
+    height: CARD_HEIGHT * 0.40,
+    backgroundColor: 'rgba(255, 255, 255, 1)',
+    padding: 12,
   },
 
   /* content */
@@ -171,24 +127,13 @@ const cardStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.30)',
+    backgroundColor: 'rgba(255,255,255,0.92)',
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 20,
   },
   categoryEmoji: { fontSize: 11 },
-  categoryLabel: { color: '#fff', fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
-
-  emojiWrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: CARD_HEIGHT * 0.38,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bigEmoji: { fontSize: 52, textShadowColor: 'rgba(0,0,0,0.2)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 6 },
+  categoryLabel: { color: '#fc8b45ff', fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
 
   info: {
     position: 'absolute',
@@ -200,29 +145,27 @@ const cardStyles = StyleSheet.create({
     gap: 3,
   },
   title: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#fff',
     letterSpacing: -0.3,
-    lineHeight: 19,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
   },
   subtitle: {
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: '500',
-    color: 'rgba(255,255,255,0.78)',
+    color: 'rgba(183, 183, 183, 0.78)',
   },
   meta: {
     flexDirection: 'row',
+    justifyContent: "space-between",
     alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
+    marginTop: 8,
   },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   ratingText: { fontSize: 12, fontWeight: '700', color: '#fff' },
-  friendsText: { fontSize: 11, fontWeight: '500', color: 'rgba(255,255,255,0.75)' },
+  friendsText: {
+    fontSize: 11, fontWeight: '500',
+    color: 'rgba(183, 183, 183, 0.78)',
+  },
 });
 
 // ─── Filter pill ──────────────────────────────────────────────────────────────
@@ -251,7 +194,7 @@ const pillStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderRadius: 24,
     gap: 5,
   },
@@ -378,9 +321,6 @@ export default function DiscoverScreen({ navigation }) {
       {/* ── Header ── */}
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Discover</Text>
-        <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-          Based on your interests
-        </Text>
       </View>
 
       {/* ── Search bar ── */}
@@ -412,22 +352,22 @@ export default function DiscoverScreen({ navigation }) {
       >
         {categoriesLoading
           ? [80, 60, 72, 55, 68, 64].map((w, i) => (
-              <View
-                key={`skel-${w}-${i}`}
-                style={[styles.pillSkeleton, { width: w, backgroundColor: isDark ? colors.cardBackground : '#e5e7eb' }]}
-              />
-            ))
+            <View
+              key={`skel-${w}-${i}`}
+              style={[styles.pillSkeleton, { width: w, backgroundColor: isDark ? colors.cardBackground : '#e5e7eb' }]}
+            />
+          ))
           : filterPills.map(p => (
-              <FilterPill
-                key={p.key}
-                label={p.label}
-                emoji={p.emoji}
-                active={activeFilter === p.key}
-                onPress={() => setActiveFilter(p.key)}
-                colors={colors}
-                isDark={isDark}
-              />
-            ))
+            <FilterPill
+              key={p.key}
+              label={p.label}
+              emoji={p.emoji}
+              active={activeFilter === p.key}
+              onPress={() => setActiveFilter(p.key)}
+              colors={colors}
+              isDark={isDark}
+            />
+          ))
         }
       </ScrollView>
 
@@ -437,6 +377,7 @@ export default function DiscoverScreen({ navigation }) {
       ) : (
         <FlatList
           data={pairs}
+          style={styles.flatList}
           keyExtractor={(_, i) => i.toString()}
           contentContainerStyle={styles.gridContent}
           showsVerticalScrollIndicator={false}
@@ -487,6 +428,7 @@ export default function DiscoverScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  flatList: { backgroundColor: '#f2f2f7' },
 
   header: {
     paddingHorizontal: 20,
@@ -494,7 +436,7 @@ const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '800',
     letterSpacing: -0.6,
   },
@@ -522,7 +464,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
 
-  pillsScroll: { height: 50, marginTop: 8, marginBottom: 2 },
+  pillsScroll: { height: 50, marginVertical: 8, },
   pillsRow: { paddingHorizontal: 16, gap: 8, alignItems: 'center' },
   pillSkeleton: { height: 36, borderRadius: 24 },
 

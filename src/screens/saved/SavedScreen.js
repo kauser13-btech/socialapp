@@ -21,14 +21,14 @@ const CARD_WIDTH = (SCREEN_WIDTH - 48) / 2;
 
 const CATEGORY_CONFIG = [
   { keys: ['food', 'drink', 'dining', 'restaurant'], emoji: '🍽️', bg: '#FFF3E8', accent: '#f97316', label: 'Food & Drinks' },
-  { keys: ['travel', 'trip', 'flight'],              emoji: '✈️', bg: '#E6F6FF', accent: '#0ea5e9', label: 'Travel' },
-  { keys: ['entertainment', 'movie', 'film', 'tv'],  emoji: '🎬', bg: '#F0EDFF', accent: '#7c3aed', label: 'Entertainment' },
-  { keys: ['fashion', 'style', 'clothing'],          emoji: '👗', bg: '#FFF0F7', accent: '#ec4899', label: 'Fashion' },
-  { keys: ['fitness', 'sport', 'gym', 'health'],     emoji: '💪', bg: '#E8FFF5', accent: '#10b981', label: 'Fitness' },
-  { keys: ['tech', 'technology', 'gadget'],          emoji: '💻', bg: '#EFF6FF', accent: '#3b82f6', label: 'Technology' },
-  { keys: ['book', 'read', 'literature'],            emoji: '📚', bg: '#FFFBEB', accent: '#f59e0b', label: 'Books' },
-  { keys: ['music', 'concert', 'song'],              emoji: '🎵', bg: '#F5F0FF', accent: '#8b5cf6', label: 'Music' },
-  { keys: ['game', 'gaming'],                        emoji: '🎮', bg: '#FFF0E8', accent: '#f97316', label: 'Gaming' },
+  { keys: ['travel', 'trip', 'flight'], emoji: '✈️', bg: '#E6F6FF', accent: '#0ea5e9', label: 'Travel' },
+  { keys: ['entertainment', 'movie', 'film', 'tv'], emoji: '🎬', bg: '#F0EDFF', accent: '#7c3aed', label: 'Entertainment' },
+  { keys: ['fashion', 'style', 'clothing'], emoji: '👗', bg: '#FFF0F7', accent: '#ec4899', label: 'Fashion' },
+  { keys: ['fitness', 'sport', 'gym', 'health'], emoji: '💪', bg: '#E8FFF5', accent: '#10b981', label: 'Fitness' },
+  { keys: ['tech', 'technology', 'gadget'], emoji: '💻', bg: '#EFF6FF', accent: '#3b82f6', label: 'Technology' },
+  { keys: ['book', 'read', 'literature'], emoji: '📚', bg: '#FFFBEB', accent: '#f59e0b', label: 'Books' },
+  { keys: ['music', 'concert', 'song'], emoji: '🎵', bg: '#F5F0FF', accent: '#8b5cf6', label: 'Music' },
+  { keys: ['game', 'gaming'], emoji: '🎮', bg: '#FFF0E8', accent: '#f97316', label: 'Gaming' },
 ];
 
 function getCategoryConfig(name) {
@@ -64,16 +64,16 @@ export default function SavedScreen({ navigation }) {
   const { colors, isDark } = useTheme();
   const { user } = useAuth();
 
-  const [categories, setCategories]     = useState([]);
-  const [preferences, setPreferences]   = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [refreshing, setRefreshing]     = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [preferences, setPreferences] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [specialDates, setSpecialDates] = useState([]);
-  const [allergies, setAllergies]       = useState([]);
+  const [allergies, setAllergies] = useState([]);
 
   const preferencesCount = preferences.length;
-  const categoriesCount  = categories.length;
-  const friendsCount     = user?.friends_count ?? 0;
+  const categoriesCount = categories.length;
+  const friendsCount = user?.friends_count ?? 0;
 
   const load = useCallback(async () => {
     try {
@@ -124,25 +124,25 @@ export default function SavedScreen({ navigation }) {
   if (loading) return <Loading fullScreen />;
 
   // Profile Details sub-labels
-  const upcomingCount  = specialDates.filter(d => {
-    const now  = new Date();
+  const upcomingCount = specialDates.filter(d => {
+    const now = new Date();
     const year = now.getFullYear();
-    let next   = new Date(year, Number(d.month) - 1, Number(d.day));
+    let next = new Date(year, Number(d.month) - 1, Number(d.day));
     if (next < now) next = new Date(year + 1, Number(d.month) - 1, Number(d.day));
     return Math.round((next - now) / (1000 * 60 * 60 * 24)) <= 30;
   }).length;
-  const severeCount    = allergies.filter(a => a.severity === 'severe').length;
+  const severeCount = allergies.filter(a => a.severity === 'severe').length;
 
-  const dateNames     = specialDates.slice(0, 2).map(d => d.name).join(' · ');
-  const dateUpcoming  = upcomingCount > 0 ? ` · ${upcomingCount} upcoming` : '';
-  const datesSub      = specialDates.length === 0 ? 'Birthday · Anniversary' : dateNames + dateUpcoming;
+  const dateNames = specialDates.slice(0, 2).map(d => d.name).join(' · ');
+  const dateUpcoming = upcomingCount > 0 ? ` · ${upcomingCount} upcoming` : '';
+  const datesSub = specialDates.length === 0 ? 'Birthday · Anniversary' : dateNames + dateUpcoming;
 
-  const allergyBase   = `${allergies.length} item${allergies.length === 1 ? '' : 's'}`;
-  const allergyStr    = severeCount > 0 ? `${allergyBase} · ${severeCount} severe` : allergyBase;
-  const allergiesSub  = allergies.length === 0 ? 'None added' : allergyStr;
+  const allergyBase = `${allergies.length} item${allergies.length === 1 ? '' : 's'}`;
+  const allergyStr = severeCount > 0 ? `${allergyBase} · ${severeCount} severe` : allergyBase;
+  const allergiesSub = allergies.length === 0 ? 'None added' : allergyStr;
 
   const renderCategoryCard = ({ item, index }) => {
-    const cfg    = getCategoryConfig(item.name);
+    const cfg = getCategoryConfig(item.name);
     const isLeft = index % 2 === 0;
     return (
       <TouchableOpacity
@@ -193,9 +193,6 @@ export default function SavedScreen({ navigation }) {
       >
         {/* ── Purple Hero Header ── */}
         <View style={styles.heroSection}>
-          <View style={styles.heroBubble1} />
-          <View style={styles.heroBubble2} />
-
           <View style={styles.heroTop}>
             <Text style={styles.heroTitle}>My Preferences</Text>
             <TouchableOpacity
@@ -208,7 +205,7 @@ export default function SavedScreen({ navigation }) {
           </View>
 
           <View style={styles.statsRow}>
-            <TouchableOpacity style={styles.statItem} onPress={() => {}} activeOpacity={0.75}>
+            <TouchableOpacity style={styles.statItem} onPress={() => { }} activeOpacity={0.75}>
               <Text style={styles.statCount}>{preferencesCount}</Text>
               <Text style={styles.statLabel}>Preferences</Text>
             </TouchableOpacity>
@@ -330,32 +327,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#5B4CF5',
     paddingHorizontal: 20,
     paddingTop: 52,
-    paddingBottom: 32,
     overflow: 'hidden',
-  },
-  heroBubble1: {
-    position: 'absolute',
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    top: -60,
-    right: -40,
-  },
-  heroBubble2: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    bottom: -30,
-    left: -30,
   },
   heroTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 12,
   },
   heroTitle: {
     fontSize: 28,
@@ -377,6 +355,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 12,
   },
   statItem: {
     flex: 1,
@@ -384,7 +363,7 @@ const styles = StyleSheet.create({
   },
   statCount: {
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: '900',
     color: '#ffffff',
     letterSpacing: -0.5,
   },
@@ -395,7 +374,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   statDivider: {
-    width: 1,
+    width: 2,
     height: 36,
     backgroundColor: 'rgba(255,255,255,0.25)',
   },
