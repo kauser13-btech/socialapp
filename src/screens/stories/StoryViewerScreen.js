@@ -6,17 +6,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
+import Video from 'react-native-video';
 import { useAuth } from '../../contexts/AuthContext';
-import { storiesAPI, messagesAPI } from '../../lib/api';
+import { storiesAPI, messagesAPI, fixImageUrl, fixVideoUrl } from '../../lib/api';
 
 const { width: W, height: H } = Dimensions.get('window');
-const STORY_DURATION  = 5000;
+const IMAGE_DURATION  = 5000;
 const SWIPE_THRESHOLD = 60;
 
 const FALLBACK_COLORS = ['#f97316', '#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ec4899'];
 const REACTIONS       = ['❤️', '🔥', '😍', '😮', '👏', '😢'];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 function timeAgo(ts) {
   if (!ts) return '';
   const secs = Math.floor((Date.now() - new Date(ts).getTime()) / 1000);
@@ -24,8 +24,7 @@ function timeAgo(ts) {
   if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
   return `${Math.floor(secs / 3600)}h ago`;
 }
-
-function userName(user) {
+function getUsername(user) {
   return user?.name || user?.first_name || user?.username || 'User';
 }
 
@@ -40,7 +39,7 @@ function ProgressSegment({ active, done, duration }) {
     } else if (!done) {
       anim.setValue(0);
     }
-  }, [active, done]);
+  }, [active, done, duration]);
 
   return (
     <View style={seg.track}>
@@ -53,21 +52,48 @@ const seg = StyleSheet.create({
   fill:  { height: '100%', backgroundColor: '#fff', borderRadius: 2 },
 });
 
-// ── Story background ──────────────────────────────────────────────────────────
-function StoryBg({ story, groupIdx }) {
-  const [err, setErr] = useState(false);
+// ── Story background — image or video ────────────────────────────────────────
+function StoryMedia({ story, groupIdx, paused, muted, onVideoLoad, onVideoEnd }) {
+  const [imgErr, setImgErr] = useState(false);
   const fallback = FALLBACK_COLORS[groupIdx % FALLBACK_COLORS.length];
+  const isVideo  = story.media_type === 'video';
+  const mediaUri = isVideo ? fixVideoUrl(story.image_url) : fixImageUrl(story.image_url);
+  // ExoPlayer doesn't recognise .mov — treat it as mp4 (same H.264/AAC codec)
+  const videoType = mediaUri?.toLowerCase().endsWith('.mov') ? 'video/mp4' : undefined;
+
   return (
-    <View style={[bg.full, { backgroundColor: fallback }]}>
-      {story.image_url && !err && (
-        <Image source={{ uri: story.image_url }} style={bg.img} resizeMode="cover" onError={() => setErr(true)} />
+    <View style={[med.full, { backgroundColor: fallback }]}>
+      {isVideo ? (
+        <Video
+          source={{ uri: mediaUri, type: videoType }}
+          style={med.full}
+          resizeMode="cover"
+          repeat={false}
+          paused={paused}
+          muted={muted}
+          onLoad={(e) => { console.log('[StoryVideo] loaded, duration:', e.duration); onVideoLoad(e); }}
+          onEnd={onVideoEnd}
+          onError={(e) => console.warn('[StoryVideo] error:', JSON.stringify(e))}
+          onReadyForDisplay={() => console.log('[StoryVideo] ready for display')}
+          onBuffer={(e) => console.log('[StoryVideo] buffering:', e.isBuffering)}
+          ignoreSilentSwitch="ignore"
+        />
+      ) : (
+        mediaUri && !imgErr && (
+          <Image
+            source={{ uri: mediaUri }}
+            style={med.img}
+            resizeMode="cover"
+            onError={() => setImgErr(true)}
+          />
+        )
       )}
-      <View style={bg.shadTop} />
-      <View style={bg.shadBot} />
+      <View style={med.shadTop} />
+      <View style={med.shadBot} />
     </View>
   );
 }
-const bg = StyleSheet.create({
+const med = StyleSheet.create({
   full:    { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   img:     { width: W, height: H },
   shadTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 180, backgroundColor: 'rgba(0,0,0,0.45)' },
@@ -98,7 +124,7 @@ function ViewersSheet({ storyId, viewsCount, onClose }) {
               {viewers.length === 0 && <Text style={vs.empty}>No views yet</Text>}
               {viewers.map((v, i) => {
                 const u    = v.user;
-                const name = userName(u);
+                const name = getUsername(u);
                 return (
                   <View key={u?.id ?? i} style={vs.row}>
                     {u?.avatar_url
@@ -137,33 +163,31 @@ const vs = StyleSheet.create({
   empty:    { color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: 24, fontSize: 14 },
 });
 
-// ── Pinned preference card (shown on card-type stories) ───────────────────────
-function PinnedCard({ story }) {
+// ── Caption / pinned card ─────────────────────────────────────────────────────
+function CaptionCard({ story }) {
   if (!story.caption) return null;
+  const icon = story.media_type === 'card' ? 'bookmark' : 'chatbubble-ellipses-outline';
   return (
     <View style={pc.wrap}>
-      <View style={pc.left}>
-        <Icon name="bookmark" size={14} color="#6366f1" />
-      </View>
-      <Text style={pc.text} numberOfLines={2}>{story.caption}</Text>
+      <Icon name={icon} size={14} color="#a5b4fc" />
+      <Text style={pc.text} numberOfLines={3}>{story.caption}</Text>
     </View>
   );
 }
 const pc = StyleSheet.create({
   wrap: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(255,255,255,0.14)',
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: 14, padding: 12, marginHorizontal: 16, marginBottom: 10,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
   },
-  left: { width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(99,102,241,0.25)', alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, color: '#fff', fontSize: 13, lineHeight: 18 },
 });
 
 // ── Reply bar ─────────────────────────────────────────────────────────────────
-function ReplyBar({ authorName, authorId, onPause, onResume, story }) {
-  const [text, setText]         = useState('');
-  const [sending, setSending]   = useState('');   // '' | 'sending' | 'sent'
+function ReplyBar({ authorName, authorId, onPause, onResume }) {
+  const [text, setText]       = useState('');
+  const [sending, setSending] = useState('');
   const [reaction, setReaction] = useState(null);
 
   const sendReply = async () => {
@@ -183,15 +207,12 @@ function ReplyBar({ authorName, authorId, onPause, onResume, story }) {
     setReaction(emoji);
     try {
       await messagesAPI.sendMessage({ receiver_id: authorId, content: emoji });
-    } catch {
-      // silent
-    }
+    } catch { /* silent */ }
     setTimeout(() => setReaction(null), 1500);
   };
 
   return (
     <View style={rb.wrap}>
-      {/* emoji reactions row */}
       <View style={rb.emojiRow}>
         {REACTIONS.map(e => (
           <TouchableOpacity
@@ -204,8 +225,6 @@ function ReplyBar({ authorName, authorId, onPause, onResume, story }) {
           </TouchableOpacity>
         ))}
       </View>
-
-      {/* text input row */}
       <View style={rb.inputRow}>
         <TextInput
           style={rb.input}
@@ -233,19 +252,19 @@ function ReplyBar({ authorName, authorId, onPause, onResume, story }) {
   );
 }
 const rb = StyleSheet.create({
-  wrap:      { paddingHorizontal: 12, paddingBottom: Platform.OS === 'ios' ? 8 : 12 },
-  emojiRow:  { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
-  emoji:     { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
+  wrap:        { paddingHorizontal: 12, paddingBottom: Platform.OS === 'ios' ? 8 : 12 },
+  emojiRow:    { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
+  emoji:       { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
   emojiActive: { backgroundColor: 'rgba(255,255,255,0.30)', transform: [{ scale: 1.2 }] },
-  emojiTxt:  { fontSize: 20 },
-  inputRow:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  emojiTxt:    { fontSize: 20 },
+  inputRow:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
   input: {
     flex: 1, height: 42, borderRadius: 21,
     backgroundColor: 'rgba(255,255,255,0.14)',
     paddingHorizontal: 16, color: '#fff', fontSize: 14,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
   },
-  sendBtn:   { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
 });
 
 // ── Main viewer ───────────────────────────────────────────────────────────────
@@ -253,12 +272,12 @@ export default function StoryViewerScreen({ route, navigation }) {
   const { groups, startUserId } = route.params;
   const { user: me } = useAuth();
 
-  const [groupIdx, setGroupIdx] = useState(
-    Math.max(0, groups.findIndex(g => g.user.id === startUserId))
-  );
+  const [groupIdx, setGroupIdx]   = useState(Math.max(0, groups.findIndex(g => g.user.id === startUserId)));
   const [storyIdx, setStoryIdx]   = useState(0);
   const [paused, setPaused]       = useState(false);
+  const [muted, setMuted]         = useState(false);
   const [showViewers, setShowViewers] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(IMAGE_DURATION);
 
   const timerRef  = useRef(null);
   const viewedRef = useRef(new Set());
@@ -267,9 +286,18 @@ export default function StoryViewerScreen({ route, navigation }) {
   const currentStory = currentGroup?.stories?.[storyIdx];
   const isOwn        = currentGroup?.user?.id === me?.id;
   const author       = currentGroup?.user;
-  const authorName   = userName(author);
+  const authorName   = getUsername(author);
+  const isVideo      = currentStory?.media_type === 'video';
 
-  // mark viewed
+  // Duration used for the progress bar — actual video length or default 5 s
+  const storyDuration = isVideo ? videoDuration : IMAGE_DURATION;
+
+  // Reset video duration when story changes
+  useEffect(() => {
+    setVideoDuration(IMAGE_DURATION);
+  }, [groupIdx, storyIdx]);
+
+  // Mark viewed once per session
   useEffect(() => {
     if (!currentStory?.id || viewedRef.current.has(currentStory.id)) return;
     viewedRef.current.add(currentStory.id);
@@ -298,27 +326,26 @@ export default function StoryViewerScreen({ route, navigation }) {
     }
   }, [storyIdx, groupIdx, groups]);
 
-  // auto-advance timer
+  // Auto-advance timer — for images only; videos advance via onEnd
   useEffect(() => {
-    if (!currentStory || paused) return;
-    timerRef.current = setTimeout(advance, STORY_DURATION);
+    if (!currentStory || paused || isVideo) return;
+    timerRef.current = setTimeout(advance, storyDuration);
     return () => clearTimeout(timerRef.current);
-  }, [groupIdx, storyIdx, paused, advance]);
+  }, [groupIdx, storyIdx, paused, advance, isVideo, storyDuration]);
 
-  // horizontal swipe to next/prev user group
+  // Swipe left/right to jump between user groups
   const panResponder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 10 && Math.abs(g.dx) > Math.abs(g.dy),
       onPanResponderRelease: (_, g) => {
         if (g.dx < -SWIPE_THRESHOLD) {
-          // swipe left → next group
           setGroupIdx(prev => {
-            if (prev < groups.length - 1) { setStoryIdx(0); return prev + 1; }
-            navigation.goBack();
-            return prev;
+            const next = prev < groups.length - 1 ? prev + 1 : prev;
+            if (next === prev) { navigation.goBack(); }
+            else { setStoryIdx(0); }
+            return next;
           });
         } else if (g.dx > SWIPE_THRESHOLD) {
-          // swipe right → prev group
           setGroupIdx(prev => {
             if (prev > 0) { setStoryIdx(0); return prev - 1; }
             return prev;
@@ -339,27 +366,33 @@ export default function StoryViewerScreen({ route, navigation }) {
     <View style={st.container} {...panResponder.panHandlers}>
       <StatusBar barStyle="light-content" />
 
-      <StoryBg story={currentStory} groupIdx={groupIdx} />
+      {/* Full-screen media (image or video) */}
+      <StoryMedia
+        key={`${groupIdx}-${storyIdx}`}
+        story={currentStory}
+        groupIdx={groupIdx}
+        paused={paused}
+        muted={muted}
+        onVideoLoad={e => setVideoDuration((e.duration || 15) * 1000)}
+        onVideoEnd={advance}
+      />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <SafeAreaView style={st.overlay} edges={['top', 'bottom']}>
 
-          {/* progress bars */}
+          {/* Progress bars */}
           <View style={st.progressRow}>
             {stories.map((s, i) => (
               <ProgressSegment
                 key={s.id}
                 active={i === storyIdx && !paused}
                 done={i < storyIdx}
-                duration={STORY_DURATION}
+                duration={storyDuration}
               />
             ))}
           </View>
 
-          {/* header: avatar + name + time + eye + close */}
+          {/* Header */}
           <View style={st.header}>
             {author?.avatar_url
               ? <Image source={{ uri: author.avatar_url }} style={st.avatar} />
@@ -373,6 +406,18 @@ export default function StoryViewerScreen({ route, navigation }) {
               <Text style={st.headerTime}>{timeAgo(currentStory.created_at)}</Text>
             </View>
 
+            {/* Mute toggle (video only) */}
+            {isVideo && (
+              <TouchableOpacity
+                style={st.iconBtn}
+                onPress={() => setMuted(m => !m)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Icon name={muted ? 'volume-mute' : 'volume-high'} size={20} color="#fff" />
+              </TouchableOpacity>
+            )}
+
+            {/* Viewers (own story only) */}
             {isOwn && (
               <TouchableOpacity
                 style={st.eyeBtn}
@@ -392,7 +437,7 @@ export default function StoryViewerScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* tap zones (left = back, right = next) */}
+          {/* Tap zones */}
           <View style={st.tapZones}>
             <TouchableOpacity style={st.tapLeft} onPress={goBack} activeOpacity={1} />
             <TouchableOpacity
@@ -404,16 +449,15 @@ export default function StoryViewerScreen({ route, navigation }) {
             />
           </View>
 
-          {/* bottom: pinned card + reply bar */}
+          {/* Bottom: caption + reply bar */}
           <View style={st.bottom}>
-            <PinnedCard story={currentStory} />
+            <CaptionCard story={currentStory} />
             {!isOwn && (
               <ReplyBar
                 authorName={authorName}
                 authorId={author?.id}
                 onPause={() => setPaused(true)}
                 onResume={() => setPaused(false)}
-                story={currentStory}
               />
             )}
           </View>
@@ -433,24 +477,21 @@ export default function StoryViewerScreen({ route, navigation }) {
 }
 
 const st = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#000' },
-  overlay:   { flex: 1 },
-
-  progressRow: { flexDirection: 'row', paddingHorizontal: 10, paddingTop: 6, gap: 4 },
-
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 10, gap: 10 },
-  avatar:   { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, borderColor: '#fff' },
-  avatarPh: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#fff' },
+  container:  { flex: 1, backgroundColor: '#000' },
+  overlay:    { flex: 1 },
+  progressRow:{ flexDirection: 'row', paddingHorizontal: 10, paddingTop: 6, gap: 4 },
+  header:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 10, gap: 10 },
+  avatar:     { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, borderColor: '#fff' },
+  avatarPh:   { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#fff' },
   avatarInit: { color: '#fff', fontWeight: '700', fontSize: 15 },
   headerMeta: { flex: 1 },
   headerName: { color: '#fff', fontWeight: '700', fontSize: 14 },
   headerTime: { color: 'rgba(255,255,255,0.7)', fontSize: 11 },
-  eyeBtn:    { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 },
-  eyeCount:  { color: '#fff', fontSize: 13, fontWeight: '600' },
-
-  tapZones: { flex: 1, flexDirection: 'row' },
-  tapLeft:  { flex: 1 },
-  tapRight: { flex: 2 },
-
-  bottom: { justifyContent: 'flex-end' },
+  iconBtn:    { padding: 4 },
+  eyeBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 },
+  eyeCount:   { color: '#fff', fontSize: 13, fontWeight: '600' },
+  tapZones:   { flex: 1, flexDirection: 'row' },
+  tapLeft:    { flex: 1 },
+  tapRight:   { flex: 2 },
+  bottom:     { justifyContent: 'flex-end' },
 });

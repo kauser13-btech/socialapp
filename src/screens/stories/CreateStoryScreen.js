@@ -5,7 +5,7 @@ import {
   Dimensions, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { launchImageLibrary } from 'react-native-image-picker';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { storiesAPI, preferencesAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -244,6 +244,18 @@ export default function CreateStoryScreen({ navigation, route }) {
     }
   }, [storyType]);
 
+  const recordVideo = useCallback(async () => {
+    const result = await launchCamera({
+      mediaType: 'video',
+      videoQuality: 'medium',
+      durationLimit: 15,
+      saveToPhotos: false,
+    });
+    if (!result.didCancel && result.assets?.[0]) {
+      setMediaFile(result.assets[0]);
+    }
+  }, []);
+
   const handleTypeChange = (key) => {
     setStoryType(key);
     setMediaFile(null);
@@ -368,25 +380,48 @@ export default function CreateStoryScreen({ navigation, route }) {
 
             {/* media picker for photo/video */}
             {storyType !== 'card' && (
-              <TouchableOpacity
-                style={[s.mediaPicker, {
-                  borderColor: colors.border,
-                  backgroundColor: isDark ? colors.cardBackground : '#f8fafc',
-                }]}
-                onPress={pickMedia}
-                activeOpacity={0.8}
-              >
-                {mediaFile ? (
-                  <Image source={{ uri: mediaFile.uri }} style={s.mediaImg} resizeMode="cover" />
-                ) : (
-                  <View style={s.mediaEmpty}>
-                    <Icon name={storyType === 'video' ? 'videocam-outline' : 'image-outline'} size={30} color={colors.textTertiary} />
-                    <Text style={[s.mediaEmptyTxt, { color: colors.textSecondary }]}>
-                      {storyType === 'video' ? 'Pick a video (max 15s)' : 'Pick a photo'}
-                    </Text>
-                  </View>
+              <>
+                <TouchableOpacity
+                  style={[s.mediaPicker, {
+                    borderColor: colors.border,
+                    backgroundColor: isDark ? colors.cardBackground : '#f8fafc',
+                  }]}
+                  onPress={pickMedia}
+                  activeOpacity={0.8}
+                >
+                  {mediaFile ? (
+                    <View style={s.mediaImgWrap}>
+                      <Image source={{ uri: mediaFile.uri }} style={s.mediaImg} resizeMode="cover" />
+                      {storyType === 'video' && (
+                        <View style={s.videoOverlay}>
+                          <Icon name="play-circle" size={36} color="rgba(255,255,255,0.9)" />
+                          {mediaFile.duration != null && (
+                            <Text style={s.videoDur}>{Math.round(mediaFile.duration / 1000)}s</Text>
+                          )}
+                        </View>
+                      )}
+                    </View>
+                  ) : (
+                    <View style={s.mediaEmpty}>
+                      <Icon name={storyType === 'video' ? 'videocam-outline' : 'image-outline'} size={30} color={colors.textTertiary} />
+                      <Text style={[s.mediaEmptyTxt, { color: colors.textSecondary }]}>
+                        {storyType === 'video' ? 'Pick from library (max 15s)' : 'Pick a photo'}
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {storyType === 'video' && (
+                  <TouchableOpacity
+                    style={[s.recordBtn, { backgroundColor: colors.primary }]}
+                    onPress={recordVideo}
+                    activeOpacity={0.8}
+                  >
+                    <Icon name="radio-button-on" size={18} color="#fff" />
+                    <Text style={s.recordTxt}>Record 15s video</Text>
+                  </TouchableOpacity>
                 )}
-              </TouchableOpacity>
+              </>
             )}
           </View>
 
@@ -480,10 +515,15 @@ const s = StyleSheet.create({
   typeTile: { flex: 1, borderWidth: 2, borderRadius: 14, paddingVertical: 16, alignItems: 'center', gap: 7 },
   typeLbl:  { fontSize: 12, fontWeight: '700' },
 
-  mediaPicker: { marginTop: 12, height: 160, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
-  mediaImg:    { width: '100%', height: '100%' },
-  mediaEmpty:  { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  mediaPicker:  { marginTop: 12, height: 160, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  mediaImgWrap: { flex: 1 },
+  mediaImg:     { width: '100%', height: '100%' },
+  videoOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.25)' },
+  videoDur:     { color: '#fff', fontSize: 12, fontWeight: '700', backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  mediaEmpty:   { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
   mediaEmptyTxt: { fontSize: 13 },
+  recordBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10, paddingVertical: 12, borderRadius: 14 },
+  recordTxt:    { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   captionInput: {
     fontSize: 15, lineHeight: 22, minHeight: 80,

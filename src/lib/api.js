@@ -166,6 +166,14 @@ export function fixImageUrl(url) {
   return url;
 }
 
+// Rewrites /storage/<path> to /storage-stream/<path> so iOS AVFoundation gets
+// byte-range (206) responses. php artisan serve cannot serve Accept-Ranges.
+export function fixVideoUrl(url) {
+  const fixed = fixImageUrl(url);
+  if (!fixed) return fixed;
+  return fixed.replace(/\/storage\//, '/storage-stream/');
+}
+
 // Authentication API
 export const authAPI = {
   register: (userData) => api.post('/auth/register', userData),
