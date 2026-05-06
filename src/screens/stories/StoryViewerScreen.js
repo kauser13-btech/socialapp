@@ -15,7 +15,45 @@ const IMAGE_DURATION  = 5000;
 const SWIPE_THRESHOLD = 60;
 
 const FALLBACK_COLORS = ['#f97316', '#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ec4899'];
-const REACTIONS       = ['❤️', '🔥', '😍', '😮', '👏', '😢'];
+const REACTIONS       = ['❤️', '🔥', '😍'];
+
+const CAT_GRADIENTS = [
+  { keys: ['food', 'dining'],    top: '#f97316', bot: '#ea580c' },
+  { keys: ['movie', 'film'],     top: '#8b5cf6', bot: '#6d28d9' },
+  { keys: ['travel', 'trip'],    top: '#0ea5e9', bot: '#0284c7' },
+  { keys: ['music'],             top: '#10b981', bot: '#059669' },
+  { keys: ['game'],              top: '#f59e0b', bot: '#d97706' },
+  { keys: ['book', 'read'],      top: '#f97316', bot: '#b45309' },
+  { keys: ['sport', 'fitness'],  top: '#ec4899', bot: '#db2777' },
+  { keys: ['tech', 'gadget'],    top: '#64748b', bot: '#475569' },
+];
+const CAT_EMOJIS = {
+  book: '📚', restaurant: '🍽️', film: '🎬', airplane: '✈️',
+  'musical-notes': '🎵', 'game-controller': '🎮', fitness: '💪', 'hardware-chip': '💻',
+};
+const CAT_ICONS = [
+  { keys: ['food', 'dining'],   icon: 'restaurant' },
+  { keys: ['movie', 'film'],    icon: 'film' },
+  { keys: ['travel', 'trip'],   icon: 'airplane' },
+  { keys: ['music'],            icon: 'musical-notes' },
+  { keys: ['game'],             icon: 'game-controller' },
+  { keys: ['book', 'read'],     icon: 'book' },
+  { keys: ['sport', 'fitness'], icon: 'fitness' },
+  { keys: ['tech', 'gadget'],   icon: 'hardware-chip' },
+];
+
+function catGradient(name) {
+  if (!name) return ['#f97316', '#b45309'];
+  const l = name.toLowerCase();
+  const m = CAT_GRADIENTS.find(g => g.keys.some(k => l.includes(k)));
+  return m ? [m.top, m.bot] : ['#f97316', '#b45309'];
+}
+function catEmoji(name) {
+  if (!name) return '📁';
+  const l = name.toLowerCase();
+  const m = CAT_ICONS.find(g => g.keys.some(k => l.includes(k)));
+  return m ? (CAT_EMOJIS[m.icon] || '📁') : '📁';
+}
 
 function timeAgo(ts) {
   if (!ts) return '';
@@ -55,11 +93,22 @@ const seg = StyleSheet.create({
 // ── Story background — image or video ────────────────────────────────────────
 function StoryMedia({ story, groupIdx, paused, muted, onVideoLoad, onVideoEnd }) {
   const [imgErr, setImgErr] = useState(false);
-  const fallback = FALLBACK_COLORS[groupIdx % FALLBACK_COLORS.length];
+  const isCard   = story.media_type === 'card';
   const isVideo  = story.media_type === 'video';
+  const fallback = isCard
+    ? catGradient(story.preference?.category?.name)[0]
+    : FALLBACK_COLORS[groupIdx % FALLBACK_COLORS.length];
   const mediaUri = isVideo ? fixVideoUrl(story.image_url) : fixImageUrl(story.image_url);
-  // ExoPlayer doesn't recognise .mov — treat it as mp4 (same H.264/AAC codec)
   const videoType = mediaUri?.toLowerCase().endsWith('.mov') ? 'video/mp4' : undefined;
+
+  if (isCard) {
+    const [gradTop, gradBot] = catGradient(story.preference?.category?.name);
+    return (
+      <View style={[med.full, { backgroundColor: gradBot }]}>
+        <View style={[med.gradOverlay, { backgroundColor: gradTop }]} />
+      </View>
+    );
+  }
 
   return (
     <View style={[med.full, { backgroundColor: fallback }]}>
@@ -94,10 +143,111 @@ function StoryMedia({ story, groupIdx, paused, muted, onVideoLoad, onVideoEnd })
   );
 }
 const med = StyleSheet.create({
-  full:    { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  img:     { width: W, height: H },
-  shadTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 180, backgroundColor: 'rgba(0,0,0,0.45)' },
-  shadBot: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 220, backgroundColor: 'rgba(0,0,0,0.55)' },
+  full:        { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  gradOverlay: { position: 'absolute', top: 0, left: 0, right: 0, height: H * 0.55, opacity: 0.85 },
+  img:         { width: W, height: H },
+  shadTop:     { position: 'absolute', top: 0, left: 0, right: 0, height: 180, backgroundColor: 'rgba(0,0,0,0.45)' },
+  shadBot:     { position: 'absolute', bottom: 0, left: 0, right: 0, height: 220, backgroundColor: 'rgba(0,0,0,0.55)' },
+});
+
+// ── Card story rich content ───────────────────────────────────────────────────
+function CardStoryContent({ story }) {
+  const pref     = story.preference;
+  const catName  = pref?.category?.name;
+  const emoji    = catEmoji(catName);
+  const heroImg  = pref?.images?.[0]?.url;
+  const rating   = pref?.rating ?? 0;
+  const label    = catName ? catName.toUpperCase() : 'PREFERENCE';
+
+  return (
+    <View style={card.wrap}>
+      {/* "Currently reading / watching / etc." label */}
+      <View style={card.activityRow}>
+        <Text style={card.activityEmoji}>{emoji}</Text>
+        <Text style={card.activityLabel}>{label}</Text>
+      </View>
+
+      {/* Preference card */}
+      <View style={card.prefCard}>
+        {/* Cover image */}
+        <View style={card.coverWrap}>
+          {heroImg
+            ? <Image source={{ uri: heroImg }} style={card.cover} resizeMode="cover" />
+            : <View style={[card.cover, card.coverFallback]} />}
+          {/* Category badge */}
+          <View style={card.catBadge}>
+            <Text style={card.catBadgeEmoji}>{emoji}</Text>
+            <Text style={card.catBadgeTxt}>{catName || 'Card'}</Text>
+          </View>
+        </View>
+
+        {/* Info section */}
+        <View style={card.infoWrap}>
+          <Text style={card.title} numberOfLines={2}>{pref?.title || 'Untitled'}</Text>
+          {rating > 0 && (
+            <View style={card.starsRow}>
+              {Array.from({ length: 5 }, (_, i) => (
+                <Icon key={i} name={i < rating ? 'star' : 'star-outline'} size={13} color="#f59e0b" />
+              ))}
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* Caption / quote */}
+      {!!story.caption && (
+        <Text style={card.caption} numberOfLines={3}>"{story.caption}"</Text>
+      )}
+    </View>
+  );
+}
+const card = StyleSheet.create({
+  wrap: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 14,
+  },
+  activityEmoji: { fontSize: 14 },
+  activityLabel: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+  },
+  prefCard: {
+    width: W - 64,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  coverWrap: { width: '100%', height: (W - 64) * 0.65 },
+  cover:     { width: '100%', height: '100%' },
+  coverFallback: { backgroundColor: 'rgba(255,255,255,0.15)' },
+  catBadge: {
+    position: 'absolute', top: 10, left: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+  },
+  catBadgeEmoji: { fontSize: 11 },
+  catBadgeTxt:   { fontSize: 10, fontWeight: '800', color: '#c2410c', letterSpacing: 0.3 },
+  infoWrap: { padding: 14 },
+  title:    { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: -0.3, marginBottom: 6 },
+  starsRow: { flexDirection: 'row', gap: 2 },
+  caption: {
+    marginTop: 14,
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
 });
 
 // ── Viewers sheet ─────────────────────────────────────────────────────────────
@@ -186,8 +336,8 @@ const pc = StyleSheet.create({
 
 // ── Reply bar ─────────────────────────────────────────────────────────────────
 function ReplyBar({ authorName, authorId, onPause, onResume }) {
-  const [text, setText]       = useState('');
-  const [sending, setSending] = useState('');
+  const [text, setText]         = useState('');
+  const [sending, setSending]   = useState('');
   const [reaction, setReaction] = useState(null);
 
   const sendReply = async () => {
@@ -213,23 +363,12 @@ function ReplyBar({ authorName, authorId, onPause, onResume }) {
 
   return (
     <View style={rb.wrap}>
-      <View style={rb.emojiRow}>
-        {REACTIONS.map(e => (
-          <TouchableOpacity
-            key={e}
-            style={[rb.emoji, reaction === e && rb.emojiActive]}
-            onPress={() => sendReaction(e)}
-            activeOpacity={0.7}
-          >
-            <Text style={rb.emojiTxt}>{e}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-      <View style={rb.inputRow}>
+      <View style={rb.row}>
+        {/* Text input */}
         <TextInput
           style={rb.input}
-          placeholder={`Reply to ${authorName}…`}
-          placeholderTextColor="rgba(255,255,255,0.5)"
+          placeholder={`Reply to ${authorName}...`}
+          placeholderTextColor="rgba(255,255,255,0.55)"
           value={text}
           onChangeText={setText}
           onFocus={onPause}
@@ -238,33 +377,48 @@ function ReplyBar({ authorName, authorId, onPause, onResume }) {
           onSubmitEditing={sendReply}
           submitBehavior="submit"
         />
-        <TouchableOpacity
-          style={[rb.sendBtn, { opacity: text.trim() ? 1 : 0.4 }]}
-          onPress={sendReply}
-          disabled={!text.trim() || sending === 'sending'}
-        >
-          {sending === 'sending' && <ActivityIndicator size="small" color="#fff" />}
-          {sending === 'sent'    && <Icon name="checkmark-circle" size={22} color="#4ade80" />}
-          {sending === ''        && <Icon name="send" size={20} color="#fff" />}
-        </TouchableOpacity>
+
+        {/* When typing: show send button. Otherwise: emoji reactions */}
+        {text.trim() ? (
+          <TouchableOpacity
+            style={rb.sendBtn}
+            onPress={sendReply}
+            disabled={sending === 'sending'}
+            activeOpacity={0.75}
+          >
+            {sending === 'sending' && <ActivityIndicator size="small" color="#fff" />}
+            {sending === 'sent'    && <Icon name="checkmark-circle" size={22} color="#4ade80" />}
+            {sending === ''        && <Icon name="send" size={20} color="#fff" />}
+          </TouchableOpacity>
+        ) : (
+          REACTIONS.map(e => (
+            <TouchableOpacity
+              key={e}
+              style={[rb.emoji, reaction === e && rb.emojiActive]}
+              onPress={() => sendReaction(e)}
+              activeOpacity={0.7}
+            >
+              <Text style={rb.emojiTxt}>{e}</Text>
+            </TouchableOpacity>
+          ))
+        )}
       </View>
     </View>
   );
 }
 const rb = StyleSheet.create({
-  wrap:        { paddingHorizontal: 12, paddingBottom: Platform.OS === 'ios' ? 8 : 12 },
-  emojiRow:    { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
-  emoji:       { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
-  emojiActive: { backgroundColor: 'rgba(255,255,255,0.30)', transform: [{ scale: 1.2 }] },
-  emojiTxt:    { fontSize: 20 },
-  inputRow:    { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  wrap:        { paddingHorizontal: 14, paddingBottom: Platform.OS === 'ios' ? 8 : 14, paddingTop: 6 },
+  row:         { flexDirection: 'row', alignItems: 'center', gap: 8 },
   input: {
-    flex: 1, height: 42, borderRadius: 21,
+    flex: 1, height: 44, borderRadius: 22,
     backgroundColor: 'rgba(255,255,255,0.14)',
-    paddingHorizontal: 16, color: '#fff', fontSize: 14,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 18, color: '#fff', fontSize: 14,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
   },
-  sendBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
+  emoji:       { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
+  emojiActive: { backgroundColor: 'rgba(255,255,255,0.3)', transform: [{ scale: 1.18 }] },
+  emojiTxt:    { fontSize: 20 },
+  sendBtn:     { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' },
 });
 
 // ── Main viewer ───────────────────────────────────────────────────────────────
@@ -288,6 +442,7 @@ export default function StoryViewerScreen({ route, navigation }) {
   const author       = currentGroup?.user;
   const authorName   = getUsername(author);
   const isVideo      = currentStory?.media_type === 'video';
+  const isCard       = currentStory?.media_type === 'card';
 
   // Duration used for the progress bar — actual video length or default 5 s
   const storyDuration = isVideo ? videoDuration : IMAGE_DURATION;
@@ -437,7 +592,7 @@ export default function StoryViewerScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Tap zones */}
+          {/* Tap zones + card content share the flex space */}
           <View style={st.tapZones}>
             <TouchableOpacity style={st.tapLeft} onPress={goBack} activeOpacity={1} />
             <TouchableOpacity
@@ -447,11 +602,17 @@ export default function StoryViewerScreen({ route, navigation }) {
               onPress={advance}
               activeOpacity={1}
             />
+            {/* Card content sits as a non-interactive overlay inside the tap zone area */}
+            {isCard && (
+              <View style={st.cardContent} pointerEvents="none">
+                <CardStoryContent story={currentStory} />
+              </View>
+            )}
           </View>
 
-          {/* Bottom: caption + reply bar */}
+          {/* Bottom: caption (non-card) + reply bar */}
           <View style={st.bottom}>
-            <CaptionCard story={currentStory} />
+            {!isCard && <CaptionCard story={currentStory} />}
             {!isOwn && (
               <ReplyBar
                 authorName={authorName}
@@ -490,8 +651,9 @@ const st = StyleSheet.create({
   iconBtn:    { padding: 4 },
   eyeBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 },
   eyeCount:   { color: '#fff', fontSize: 13, fontWeight: '600' },
-  tapZones:   { flex: 1, flexDirection: 'row' },
-  tapLeft:    { flex: 1 },
-  tapRight:   { flex: 2 },
-  bottom:     { justifyContent: 'flex-end' },
+  tapZones:    { flex: 1, flexDirection: 'row' },
+  tapLeft:     { flex: 1 },
+  tapRight:    { flex: 2 },
+  cardContent: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
+  bottom:      { justifyContent: 'flex-end' },
 });
