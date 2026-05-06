@@ -13,36 +13,36 @@ import { spacing, fontSize, fontWeight } from '../../constants/styles';
 
 const AVATAR_SIZE = 96;
 const AVATAR_RING = 4;
-const HEADER_H    = 190;
-const CARD_W      = 160;
-const CARD_H      = 200;
+const HEADER_H = 120;
+const CARD_W = 160;
+const CARD_H = 200;
 
 // ─── Category rules ───────────────────────────────────────────────────────────
 const CATEGORY_RULES = [
-  { keys: ['food', 'dining', 'restaurant'], icon: 'restaurant',      color: '#f97316' },
-  { keys: ['film', 'movie', 'cinema'],      icon: 'film',            color: '#8b5cf6' },
-  { keys: ['travel', 'trip', 'adventure'],  icon: 'airplane',        color: '#0ea5e9' },
-  { keys: ['music', 'song', 'concert'],     icon: 'musical-notes',   color: '#10b981' },
-  { keys: ['game', 'gaming'],               icon: 'game-controller', color: '#f59e0b' },
-  { keys: ['book', 'read', 'literature'],   icon: 'book',            color: '#6366f1' },
-  { keys: ['sport', 'fitness', 'gym'],      icon: 'fitness',         color: '#ec4899' },
-  { keys: ['tech', 'gadget', 'software'],   icon: 'hardware-chip',   color: '#64748b' },
-  { keys: ['art', 'design', 'craft'],       icon: 'color-palette',   color: '#e879f9' },
-  { keys: ['nature', 'outdoor', 'hiking'],  icon: 'leaf',            color: '#16a34a' },
-  { keys: ['health', 'wellness'],           icon: 'heart',           color: '#ef4444' },
-  { keys: ['fashion', 'style'],             icon: 'shirt',           color: '#f43f5e' },
-  { keys: ['photo', 'photography'],         icon: 'camera',          color: '#0891b2' },
+  { keys: ['food', 'dining', 'restaurant'], icon: 'restaurant', color: '#f97316' },
+  { keys: ['film', 'movie', 'cinema'], icon: 'film', color: '#8b5cf6' },
+  { keys: ['travel', 'trip', 'adventure'], icon: 'airplane', color: '#0ea5e9' },
+  { keys: ['music', 'song', 'concert'], icon: 'musical-notes', color: '#10b981' },
+  { keys: ['game', 'gaming'], icon: 'game-controller', color: '#f59e0b' },
+  { keys: ['book', 'read', 'literature'], icon: 'book', color: '#6366f1' },
+  { keys: ['sport', 'fitness', 'gym'], icon: 'fitness', color: '#ec4899' },
+  { keys: ['tech', 'gadget', 'software'], icon: 'hardware-chip', color: '#64748b' },
+  { keys: ['art', 'design', 'craft'], icon: 'color-palette', color: '#e879f9' },
+  { keys: ['nature', 'outdoor', 'hiking'], icon: 'leaf', color: '#16a34a' },
+  { keys: ['health', 'wellness'], icon: 'heart', color: '#ef4444' },
+  { keys: ['fashion', 'style'], icon: 'shirt', color: '#f43f5e' },
+  { keys: ['photo', 'photography'], icon: 'camera', color: '#0891b2' },
 ];
 
 const CATEGORY_GRADIENTS = [
-  { keys: ['food', 'dining'],   colors: ['#f97316', '#ea580c'] },
-  { keys: ['film', 'movie'],    colors: ['#8b5cf6', '#6d28d9'] },
-  { keys: ['travel', 'trip'],   colors: ['#0ea5e9', '#0284c7'] },
-  { keys: ['music'],            colors: ['#10b981', '#059669'] },
-  { keys: ['game'],             colors: ['#f59e0b', '#d97706'] },
-  { keys: ['book', 'read'],     colors: ['#6366f1', '#4f46e5'] },
+  { keys: ['food', 'dining'], colors: ['#f97316', '#ea580c'] },
+  { keys: ['film', 'movie'], colors: ['#8b5cf6', '#6d28d9'] },
+  { keys: ['travel', 'trip'], colors: ['#0ea5e9', '#0284c7'] },
+  { keys: ['music'], colors: ['#10b981', '#059669'] },
+  { keys: ['game'], colors: ['#f59e0b', '#d97706'] },
+  { keys: ['book', 'read'], colors: ['#6366f1', '#4f46e5'] },
   { keys: ['sport', 'fitness'], colors: ['#ec4899', '#db2777'] },
-  { keys: ['tech', 'gadget'],   colors: ['#64748b', '#475569'] },
+  { keys: ['tech', 'gadget'], colors: ['#64748b', '#475569'] },
 ];
 
 function getCategoryMeta(name = '') {
@@ -90,11 +90,11 @@ function GradientBg({ height }) {
 
 // ─── Favorite card ────────────────────────────────────────────────────────────
 function FavoriteCard({ item, onPress }) {
-  const catName   = item.category?.name || '';
-  const meta      = getCategoryMeta(catName);
-  const [c1, c2]  = getCardGradient(catName);
+  const catName = item.category?.name || '';
+  const meta = getCategoryMeta(catName);
+  const [c1, c2] = getCardGradient(catName);
   const heroImage = item.images?.[0]?.url;
-  const subtitle  = [item.subtitle, item.year].filter(Boolean).join(' · ');
+  const subtitle = [item.subtitle, item.year].filter(Boolean).join(' · ');
 
   return (
     <TouchableOpacity style={favStyles.card} onPress={onPress} activeOpacity={0.88}>
@@ -123,21 +123,26 @@ function FavoriteCard({ item, onPress }) {
 
 // ─── Taste DNA bar ────────────────────────────────────────────────────────────
 function TasteDNABar({ name, count, maxCount, colors }) {
-  const safeName  = typeof name === 'string' ? name : String(name ?? '');
+  const safeName = typeof name === 'string' ? name : String(name ?? '');
   const safeCount = Number(count) || 0;
-  const pct       = maxCount > 0 ? safeCount / maxCount : 0;
-  const meta      = getCategoryMeta(safeName);
+  const pct = maxCount > 0 ? safeCount / maxCount : 0;
+  const meta = getCategoryMeta(safeName);
   return (
     <TouchableOpacity style={dnaStyles.row} activeOpacity={0.7}>
       <View style={[dnaStyles.iconWrap, { backgroundColor: meta.color + '18' }]}>
         <Icon name={meta.icon} size={15} color={meta.color} />
       </View>
-      <Text style={[dnaStyles.label, { color: colors.textPrimary }]}>{safeName}</Text>
-      <View style={[dnaStyles.track, { backgroundColor: colors.gray200 }]}>
-        <View style={[dnaStyles.fill, { width: `${pct * 100}%`, backgroundColor: meta.color }]} />
+
+      <View style={dnaStyles.col}>
+        <Text style={[dnaStyles.label, { color: colors.textPrimary }]}>{safeName}</Text>
+
+        <View style={dnaStyles.row}>
+          <View style={[dnaStyles.track, { backgroundColor: colors.gray200 }]}>
+            <View style={[dnaStyles.fill, { width: `${pct * 100}%`, backgroundColor: meta.color }]} />
+          </View>
+          <Text style={[dnaStyles.count, { color: colors.textSecondary }]}>{safeCount}</Text>
+        </View>
       </View>
-      <Text style={[dnaStyles.count, { color: colors.textSecondary }]}>{safeCount}</Text>
-      <Icon name="chevron-forward" size={14} color={colors.gray400} />
     </TouchableOpacity>
   );
 }
@@ -156,16 +161,16 @@ function InterestChip({ name }) {
 
 // ─── Allergy chip ─────────────────────────────────────────────────────────────
 const SEVERITY_STYLE = {
-  severe:   { bg: '#FFF0F0', border: '#ef4444', text: '#ef4444', icon: 'warning' },
+  severe: { bg: '#FFF0F0', border: '#ef4444', text: '#ef4444', icon: 'warning' },
   moderate: { bg: '#FFFBEB', border: '#f59e0b', text: '#d97706', icon: 'warning' },
-  mild:     { bg: '#FEFCE8', border: '#eab308', text: '#a16207', icon: null     },
+  mild: { bg: '#FEFCE8', border: '#eab308', text: '#a16207', icon: null },
 };
 
 function AllergyChip({ name, severity = 'mild' }) {
-  const key    = (severity || 'mild').toLowerCase();
-  const style  = SEVERITY_STYLE[key] || SEVERITY_STYLE.mild;
+  const key = (severity || 'mild').toLowerCase();
+  const style = SEVERITY_STYLE[key] || SEVERITY_STYLE.mild;
   const capSev = severity ? severity.charAt(0).toUpperCase() + severity.slice(1) : '';
-  const label  = capSev ? `${name} · ${capSev}` : name;
+  const label = capSev ? `${name} · ${capSev}` : name;
   return (
     <View style={[allergyStyles.chip, { backgroundColor: style.bg, borderColor: style.border }]}>
       {style.icon && <Icon name={style.icon} size={13} color={style.text} />}
@@ -205,24 +210,24 @@ function StatItem({ value, label, onPress }) {
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function UserProfileScreen({ route, navigation }) {
-  const { username }   = route.params;
+  const { username } = route.params;
   const { user: me, logout } = useAuth();
-  const { colors }     = useTheme();
-  const insets         = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
 
-  const [user,          setUser]          = useState(null);
-  const [stats,         setStats]         = useState(null);
-  const [loading,       setLoading]       = useState(true);
+  const [user, setUser] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [friendStatus,  setFriendStatus]  = useState(null);
+  const [friendStatus, setFriendStatus] = useState(null);
   const [compatibility, setCompatibility] = useState(null);
   const [mutualFriends, setMutualFriends] = useState([]);
-  const [tasteDNA,      setTasteDNA]      = useState([]);
-  const [favorites,     setFavorites]     = useState([]);
-  const [allergies,     setAllergies]     = useState([]);
-  const [prefsCount,    setPrefsCount]    = useState(0);
-  const [sharedCount,   setSharedCount]   = useState(0);
-  const [likedCount,    setLikedCount]    = useState(0);
+  const [tasteDNA, setTasteDNA] = useState([]);
+  const [favorites, setFavorites] = useState([]);
+  const [allergies, setAllergies] = useState([]);
+  const [prefsCount, setPrefsCount] = useState(0);
+  const [sharedCount, setSharedCount] = useState(0);
+  const [likedCount, setLikedCount] = useState(0);
 
   useEffect(() => { loadUser(); }, [username]);
 
@@ -241,11 +246,11 @@ export default function UserProfileScreen({ route, navigation }) {
       if (me?.id !== loaded.id) {
         analyticsAPI.getCompatibility(loaded.id)
           .then(r => { if (r.success) setCompatibility(r.data); })
-          .catch(() => {});
+          .catch(() => { });
 
         friendsAPI.mutualFriends(loaded.id)
           .then(r => setMutualFriends(r?.data?.mutual_friends || r?.data?.friends || []))
-          .catch(() => {});
+          .catch(() => { });
       }
 
       userAPI.getUserPreferences(username)
@@ -255,9 +260,9 @@ export default function UserProfileScreen({ route, navigation }) {
 
           const map = {};
           prefs.forEach(p => {
-            const cat    = p.category_name || p.category?.name || p.category || 'Other';
+            const cat = p.category_name || p.category?.name || p.category || 'Other';
             const catStr = typeof cat === 'string' ? cat : 'Other';
-            map[catStr]  = (map[catStr] || 0) + 1;
+            map[catStr] = (map[catStr] || 0) + 1;
           });
           setTasteDNA(
             Object.entries(map)
@@ -278,7 +283,7 @@ export default function UserProfileScreen({ route, navigation }) {
           const shared = prefs.filter(p => p.shared_count > 0).reduce((s, p) => s + (p.shared_count || 0), 0);
           setSharedCount(shared);
         })
-        .catch(() => {});
+        .catch(() => { });
     } catch (err) {
       Alert.alert('Error', err.message || 'Failed to load profile');
     } finally {
@@ -295,19 +300,21 @@ export default function UserProfileScreen({ route, navigation }) {
     } catch { setFriendStatus('none'); }
   };
 
-  const handleMessage     = () => user && navigation.navigate('Chat', { userId: user.id, user });
-  const handleCompare     = () => {
+  const handleMessage = () => user && navigation.navigate('Chat', { userId: user.id, user });
+  const handleCompare = () => {
     if (compatibility) Alert.alert('Taste Match', `You and ${firstName()} have a ${compatibility.score}% taste match!`);
   };
   const handleRemoveFriend = () => {
     Alert.alert('Remove Friend', `Remove ${firstName()} from your friends?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: async () => {
-        setActionLoading(true);
-        try { await friendsAPI.remove(user.id); setFriendStatus('none'); }
-        catch { Alert.alert('Error', 'Failed to remove friend'); }
-        finally { setActionLoading(false); }
-      }},
+      {
+        text: 'Remove', style: 'destructive', onPress: async () => {
+          setActionLoading(true);
+          try { await friendsAPI.remove(user.id); setFriendStatus('none'); }
+          catch { Alert.alert('Error', 'Failed to remove friend'); }
+          finally { setActionLoading(false); }
+        }
+      },
     ]);
   };
   const handleAddFriend = async () => {
@@ -321,7 +328,7 @@ export default function UserProfileScreen({ route, navigation }) {
     } finally { setActionLoading(false); }
   };
 
-  const str      = v => (v == null || typeof v === 'object' ? '' : String(v));
+  const str = v => (v == null || typeof v === 'object' ? '' : String(v));
   const fullName = () => {
     if (!user) return '';
     const fn = str(user.first_name); const ln = str(user.last_name);
@@ -330,14 +337,14 @@ export default function UserProfileScreen({ route, navigation }) {
   };
   const firstName = () => str(user?.first_name) || str(user?.username);
 
-  const isFriend     = friendStatus === 'friends';
+  const isFriend = friendStatus === 'friends';
   const isOwnProfile = me?.id === user?.id;
-  const matchScore   = compatibility?.score ?? null;
+  const matchScore = compatibility?.score ?? null;
   const topInterests = tasteDNA.slice(0, 3).map(d => d.name);
-  const maxCount     = tasteDNA[0]?.count || 1;
+  const maxCount = tasteDNA[0]?.count || 1;
   const friendsCount = stats?.friends_count ?? 0;
-  const mutualCount  = mutualFriends.length;
-  const statusBarH   = insets.top;
+  const mutualCount = mutualFriends.length;
+  const statusBarH = insets.top;
   const totalHeaderH = statusBarH + HEADER_H;
 
   const formatCount = n => {
@@ -363,7 +370,7 @@ export default function UserProfileScreen({ route, navigation }) {
 
         {/* ── Gradient header ───────────────────────────────────── */}
         <View style={{ height: totalHeaderH + AVATAR_SIZE / 2 }}>
-          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: totalHeaderH, overflow: 'hidden' }}>
+          <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: totalHeaderH }}>
             <GradientBg height={totalHeaderH} />
           </View>
           <TouchableOpacity style={[styles.backBtn, { top: statusBarH + 12 }]} onPress={() => navigation.goBack()} activeOpacity={0.8}>
@@ -382,6 +389,12 @@ export default function UserProfileScreen({ route, navigation }) {
           )}
 
           <View style={[styles.avatarRing, { bottom: 0, left: spacing.xl, width: AVATAR_SIZE + AVATAR_RING * 2, height: AVATAR_SIZE + AVATAR_RING * 2, borderRadius: (AVATAR_SIZE + AVATAR_RING * 2) / 2 }]}>
+            <View style={{ position: 'absolute', borderRadius: 64, overflow: 'hidden', height: AVATAR_SIZE + 14, width: AVATAR_SIZE + 14 }}>
+              <GradientBg height={totalHeaderH + 12} />
+            </View>
+            <View style={{ position: 'absolute', borderWidth: 8, borderColor: '#fff', borderRadius: 64, height: AVATAR_SIZE + 8, width: AVATAR_SIZE + 8 }}>
+
+            </View>
             <Avatar user={{ ...user, name: fullName() }} size="xlarge" />
           </View>
         </View>
@@ -409,20 +422,15 @@ export default function UserProfileScreen({ route, navigation }) {
           {isOwnProfile && (
             <>
               <View style={[styles.divider, { backgroundColor: colors.gray100 }]} />
-              <View style={statStyles.row}>
-                <StatItem value={formatCount(prefsCount)}    label="Prefs"   onPress={() => navigation.navigate('Preferences')} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' }}>
+                <StatItem value={formatCount(prefsCount)} label="Prefs" onPress={() => navigation.navigate('Preferences')} />
                 <View style={[statStyles.sep, { backgroundColor: colors.gray200 }]} />
-                <StatItem value={formatCount(friendsCount)}  label="Friends"  onPress={() => navigation.navigate('Friends')} />
+                <StatItem value={formatCount(friendsCount)} label="Friends" onPress={() => navigation.navigate('Friends')} />
                 <View style={[statStyles.sep, { backgroundColor: colors.gray200 }]} />
-                <StatItem value={formatCount(sharedCount)}   label="Shared"   />
+                <StatItem value={formatCount(sharedCount)} label="Shared" />
                 <View style={[statStyles.sep, { backgroundColor: colors.gray200 }]} />
-                <StatItem value={formatCount(likedCount)}    label="Liked"    />
+                <StatItem value={formatCount(likedCount)} label="Liked" />
               </View>
-              <View style={[styles.divider, { backgroundColor: colors.gray100 }]} />
-              <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.7}>
-                <Icon name="log-out-outline" size={20} color="#ef4444" />
-                <Text style={styles.logoutText}>Log Out</Text>
-              </TouchableOpacity>
             </>
           )}
 
@@ -561,7 +569,17 @@ export default function UserProfileScreen({ route, navigation }) {
             </>
           )}
 
-          <View style={{ height: 40 }} />
+          {isOwnProfile && (
+            <>
+              <View style={[styles.divider, { backgroundColor: colors.gray100 }]} />
+              <TouchableOpacity style={styles.logoutBtn} onPress={logout} activeOpacity={0.7}>
+                <Icon name="log-out-outline" size={20} color="#ef4444" />
+                <Text style={styles.logoutText}>Log Out</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          <View style={{ height: 20 }} />
         </View>
       </ScrollView>
     </View>
@@ -578,7 +596,7 @@ const styles = StyleSheet.create({
   },
   editProfileBtn: {
     position: 'absolute', right: spacing.md,
-    paddingHorizontal: 18, paddingVertical: 9,
+    paddingHorizontal: 12, paddingVertical: 9,
     borderRadius: 22, backgroundColor: '#fff',
     zIndex: 20,
     shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 6,
@@ -590,15 +608,14 @@ const styles = StyleSheet.create({
   avatarRing: {
     position: 'absolute', backgroundColor: '#fff',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 3 }, elevation: 6,
   },
-  body:      { paddingHorizontal: spacing.xl, paddingTop: spacing.md },
-  nameRow:   { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: spacing.sm },
-  name:      { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, letterSpacing: -0.3, flexShrink: 1 },
+
+  body: { marginTop: 10, paddingHorizontal: spacing.xl },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 7, },
+  name: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, letterSpacing: -0.3, flexShrink: 1 },
   onlineDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#10b981', flexShrink: 0 },
-  sub:       { fontSize: fontSize.sm, marginTop: 3 },
-  bio:       { fontSize: fontSize.sm, lineHeight: 20, marginTop: spacing.sm, color: '#333' },
+  sub: { fontSize: fontSize.sm, marginTop: 3 },
+  bio: { fontSize: fontSize.sm, lineHeight: 20, marginTop: spacing.sm, color: '#333' },
   matchPill: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
     marginTop: spacing.md, alignSelf: 'flex-start',
@@ -607,36 +624,36 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#6B63F530',
   },
   matchCircle: { width: 10, height: 10, borderRadius: 5, borderWidth: 2.5, borderColor: '#6B63F5' },
-  matchText:   { color: '#6B63F5', fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-  chipsRow:    { flexDirection: 'row', gap: 8, marginTop: spacing.md, flexWrap: 'wrap' },
-  divider:     { height: 8, marginHorizontal: -spacing.xl, marginVertical: spacing.lg },
-  actionsRow:  { flexDirection: 'row', gap: 10 },
-  actionBtn:   { flex: 1, paddingVertical: 13, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  matchText: { color: '#6B63F5', fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
+  chipsRow: { flexDirection: 'row', gap: 8, marginTop: spacing.md, flexWrap: 'wrap' },
+  divider: { height: 8, marginHorizontal: -spacing.xl, marginVertical: spacing.lg },
+  actionsRow: { flexDirection: 'row', gap: 10 },
+  actionBtn: { flex: 1, paddingVertical: 13, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   actionLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semibold },
-  friendsRow:  { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  friendsRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   friendsInfo: { flex: 1, gap: 3 },
   friendsTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  friendsSub:   { fontSize: fontSize.sm },
+  friendsSub: { fontSize: fontSize.sm },
 
   // Taste DNA
-  dnaSection:     { gap: spacing.sm },
-  dnaTitleRow:    { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
-  dnaTitleEmoji:  { fontSize: 16 },
+  dnaSection: { gap: spacing.sm },
+  dnaTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  dnaTitleEmoji: { fontSize: 16 },
   dnaSectionTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  sectionTitle:   { fontSize: 11, fontWeight: fontWeight.bold, letterSpacing: 1, marginBottom: 2 },
+  sectionTitle: { fontSize: 11, fontWeight: fontWeight.bold, letterSpacing: 1, marginBottom: 2 },
 
   // Favorites
-  favSection:     { gap: spacing.md },
-  favHeader:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  favHeaderLeft:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  favHeartBadge:  {
+  favSection: { gap: spacing.md },
+  favHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  favHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  favHeartBadge: {
     width: 28, height: 28, borderRadius: 14,
     backgroundColor: '#FFF0F0', alignItems: 'center', justifyContent: 'center',
   },
-  favTitle:       { fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  favUpdated:     { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  favTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
+  favUpdated: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   favUpdatedText: { fontSize: fontSize.sm },
-  favScroll:      { paddingVertical: 4, gap: 12 },
+  favScroll: { paddingVertical: 4, gap: 12 },
 
   // Logout
   logoutBtn: {
@@ -648,17 +665,16 @@ const styles = StyleSheet.create({
 
   // Allergies
   allergySection: { gap: spacing.sm },
-  allergyChips:   { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  allergyNote:    { fontSize: fontSize.xs, marginTop: 4, lineHeight: 18 },
+  allergyChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  allergyNote: { fontSize: fontSize.xs, marginTop: 4, lineHeight: 18 },
 });
 
 // ─── Stat row styles ──────────────────────────────────────────────────────────
 const statStyles = StyleSheet.create({
-  row:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingVertical: 4 },
-  item:  { alignItems: 'center', flex: 1 },
-  value: { fontSize: fontSize.xl, fontWeight: fontWeight.bold, color: '#1a1a1a' },
+  item: { alignItems: 'center', flex: 1 },
+  value: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: '#1a1a1a' },
   label: { fontSize: fontSize.xs, color: '#888', marginTop: 2 },
-  sep:   { width: 1, height: 32, marginHorizontal: 4 },
+  sep: { width: 2, height: 28, marginHorizontal: 4 },
 });
 
 // ─── Favorite card styles ─────────────────────────────────────────────────────
@@ -684,9 +700,9 @@ const favStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.25)',
     alignItems: 'center', justifyContent: 'center',
   },
-  bottom:  { position: 'absolute', bottom: 12, left: 12, right: 12 },
-  title:   { color: '#fff', fontSize: 15, fontWeight: '700', lineHeight: 20 },
-  sub:     { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 },
+  bottom: { position: 'absolute', bottom: 12, left: 12, right: 12 },
+  title: { color: '#fff', fontSize: 15, fontWeight: '700', lineHeight: 20 },
+  sub: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 },
 });
 
 // ─── Sub-component styles ─────────────────────────────────────────────────────
@@ -696,22 +712,23 @@ const chipStyles = StyleSheet.create({
 });
 
 const stackStyles = StyleSheet.create({
-  wrap:    { flexDirection: 'row', alignItems: 'center' },
-  circle:  { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
+  wrap: { flexDirection: 'row', alignItems: 'center' },
+  circle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#fff' },
   initial: { color: '#fff', fontSize: 13, fontWeight: '700' },
 });
 
 const dnaStyles = StyleSheet.create({
-  row:      { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  col: { flexDirection: 'column', width: "90%" },
+  row: { flexDirection: 'row', gap: 8, alignItems: "center" },
   iconWrap: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  label:    { fontSize: fontSize.sm, fontWeight: fontWeight.medium, width: 58 },
-  track:    { flex: 1, height: 7, borderRadius: 4, overflow: 'hidden' },
-  fill:     { height: 7, borderRadius: 4 },
-  count:    { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, width: 22, textAlign: 'right' },
+  label: { fontSize: fontSize.sm, fontWeight: fontWeight.medium },
+  track: { flex: 1, height: 7, borderRadius: 4, overflow: 'hidden' },
+  fill: { height: 7, borderRadius: 4 },
+  count: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, width: 22, textAlign: 'right' },
 });
 
 const allergyStyles = StyleSheet.create({
-  chip:  {
+  chip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 12, paddingVertical: 7,
     borderRadius: 20, borderWidth: 1,

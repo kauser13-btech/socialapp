@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import Ionicons from 'react-native-vector-icons/Ionicons';
+import Feather from 'react-native-vector-icons/Feather';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -45,20 +45,20 @@ import AllergiesScreen from '../screens/profile/AllergiesScreen';
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
-// Tab definition: name, label, Ionicons base name, screen component
+// Tab definition: name, label, Feather base name, screen component
 const TABS = [
   { name: 'FeedTab',     label: 'Home',     icon: 'home',        component: FeedScreen },
   { name: 'DiscoverTab', label: 'Discover', icon: 'compass',     component: DiscoverScreen },
-  { name: 'FriendsTab',  label: 'Friends',  icon: 'people',      component: FriendsScreen },
+  { name: 'FriendsTab',  label: 'Friends',  icon: 'users',       component: FriendsScreen },
   { name: 'SavedTab',    label: 'My Prefs', icon: 'heart',       component: SavedScreen },
-  { name: 'ProfileTab',  label: 'Profile',  icon: 'person',      component: OwnUserProfileScreen },
+  { name: 'ProfileTab',  label: 'Profile',  icon: 'user',        component: OwnUserProfileScreen },
 ];
 
 function TabIcon({ icon, focused, color, badge }) {
   return (
     <View style={tabStyles.iconWrap}>
-      <Ionicons
-        name={focused ? icon : `${icon}-outline`}
+      <Feather
+        name={icon}
         size={24}
         color={color}
       />
@@ -67,7 +67,6 @@ function TabIcon({ icon, focused, color, badge }) {
           <Text style={tabStyles.badgeText}>{badge > 99 ? '99+' : badge}</Text>
         </View>
       )}
-      {focused && <View style={[tabStyles.activeDot, { backgroundColor: color }]} />}
     </View>
   );
 }

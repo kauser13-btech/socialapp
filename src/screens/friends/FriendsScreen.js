@@ -15,70 +15,73 @@ const BRAND = '#6B63F5';
 
 // ─── Circular match ring ──────────────────────────────────────────────────────
 function MatchRing({ pct }) {
-  const size   = 56;
+  const size = 48;
   const stroke = 3.5;
-  const deg    = (pct / 100) * 360;
+  const deg = (pct / 100) * 360;
   let color;
   if (pct >= 80) color = BRAND;
   else if (pct >= 60) color = '#818cf8';
   else color = '#a5b4fc';
 
   return (
-    <View style={[ring.wrap, { width: size, height: size }]}>
-      {/* Track */}
-      <View style={[ring.track, { width: size, height: size, borderRadius: size / 2, borderWidth: stroke, borderColor: '#e0e0ff' }]} />
-      {/* Fill — left half */}
-      <View style={[ring.half, ring.halfLeft, { width: size / 2, height: size, borderTopLeftRadius: size / 2, borderBottomLeftRadius: size / 2 }]}>
-        <View style={[
-          ring.sector,
-          {
-            width: size / 2, height: size,
-            borderTopLeftRadius: size / 2,
-            borderBottomLeftRadius: size / 2,
-            borderWidth: stroke,
-            borderColor: deg >= 180 ? color : 'transparent',
-            borderRightWidth: 0,
-          },
-        ]} />
+    <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+      <View style={[ring.wrap, { width: size, height: size }]}>
+        {/* Track */}
+        <View style={[ring.track, { width: size, height: size, borderRadius: size / 2, borderWidth: stroke, borderColor: '#e0e0ff' }]} />
+        {/* Fill — left half */}
+        <View style={[ring.half, ring.halfLeft, { width: size / 2, height: size, borderTopLeftRadius: size / 2, borderBottomLeftRadius: size / 2 }]}>
+          <View style={[
+            ring.sector,
+            {
+              width: size / 2, height: size,
+              borderTopLeftRadius: size / 2,
+              borderBottomLeftRadius: size / 2,
+              borderWidth: stroke,
+              borderColor: deg >= 180 ? color : 'transparent',
+              borderRightWidth: 0,
+            },
+          ]} />
+        </View>
+        {/* Fill — right half */}
+        <View style={[ring.half, ring.halfRight, { width: size / 2, height: size, borderTopRightRadius: size / 2, borderBottomRightRadius: size / 2 }]}>
+          <View style={[
+            ring.sector,
+            {
+              width: size / 2, height: size,
+              borderTopRightRadius: size / 2,
+              borderBottomRightRadius: size / 2,
+              borderWidth: stroke,
+              borderColor: deg > 0 ? color : 'transparent',
+              borderLeftWidth: 0,
+              transform: [{ rotate: deg < 180 ? `${deg - 180}deg` : '0deg' }],
+            },
+          ]} />
+        </View>
+        {/* Inner label */}
+        <View style={ring.label}>
+          <Text style={[ring.pct, { color }]}>{pct}%</Text>
+
+        </View>
       </View>
-      {/* Fill — right half */}
-      <View style={[ring.half, ring.halfRight, { width: size / 2, height: size, borderTopRightRadius: size / 2, borderBottomRightRadius: size / 2 }]}>
-        <View style={[
-          ring.sector,
-          {
-            width: size / 2, height: size,
-            borderTopRightRadius: size / 2,
-            borderBottomRightRadius: size / 2,
-            borderWidth: stroke,
-            borderColor: deg > 0 ? color : 'transparent',
-            borderLeftWidth: 0,
-            transform: [{ rotate: deg < 180 ? `${deg - 180}deg` : '0deg' }],
-          },
-        ]} />
-      </View>
-      {/* Inner label */}
-      <View style={ring.label}>
-        <Text style={[ring.pct, { color }]}>{pct}%</Text>
-        <Text style={ring.matchText}>MATCH</Text>
-      </View>
+      <Text style={ring.matchText}>MATCH</Text>
     </View>
   );
 }
 
 const ring = StyleSheet.create({
-  wrap:      { position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  track:     { position: 'absolute' },
-  half:      { position: 'absolute', top: 0, overflow: 'hidden' },
-  halfLeft:  { left: 0 },
+  wrap: { position: 'relative', alignItems: 'center', justifyContent: 'center' },
+  track: { position: 'absolute' },
+  half: { position: 'absolute', top: 0, overflow: 'hidden' },
+  halfLeft: { left: 0 },
   halfRight: { right: 0 },
-  sector:    { position: 'absolute', top: 0 },
-  label:     { alignItems: 'center', justifyContent: 'center' },
-  pct:       { fontSize: 13, fontWeight: '800', lineHeight: 15 },
+  sector: { position: 'absolute', top: 0 },
+  label: { alignItems: 'center', justifyContent: 'center' },
+  pct: { fontSize: 16, fontWeight: '800', lineHeight: 15 },
   matchText: { fontSize: 7, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.5 },
 });
 
 // ─── Avatar with initials + online dot ───────────────────────────────────────
-const AVATAR_COLORS = ['#f97316','#3b82f6','#8b5cf6','#10b981','#ec4899','#06b6d4','#a855f7','#84cc16'];
+const AVATAR_COLORS = ['#f97316', '#3b82f6', '#8b5cf6', '#10b981', '#ec4899', '#06b6d4', '#a855f7', '#84cc16'];
 function getAvatarColor(name = '') {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + (name.codePointAt(i) ?? 0)) & 0xffff;
@@ -86,9 +89,9 @@ function getAvatarColor(name = '') {
 }
 
 function UserAvatar({ user, size = 52, isOnline }) {
-  const name   = `${user?.first_name || ''}${user?.last_name || ''}`;
+  const name = `${user?.first_name || ''}${user?.last_name || ''}`;
   const initials = ((user?.first_name?.[0] || '') + (user?.last_name?.[0] || '')).toUpperCase() || '?';
-  const bg     = getAvatarColor(name);
+  const bg = getAvatarColor(name);
   return (
     <View style={{ width: size, height: size }}>
       <View style={[av.circle, { width: size, height: size, borderRadius: size / 2, backgroundColor: bg }]}>
@@ -102,9 +105,9 @@ function UserAvatar({ user, size = 52, isOnline }) {
 }
 
 const av = StyleSheet.create({
-  circle:   { alignItems: 'center', justifyContent: 'center' },
+  circle: { alignItems: 'center', justifyContent: 'center' },
   initials: { color: '#fff', fontWeight: '700' },
-  dot:      { position: 'absolute', backgroundColor: '#22c55e', borderWidth: 2, borderColor: '#fff' },
+  dot: { position: 'absolute', backgroundColor: '#22c55e', borderWidth: 2, borderColor: '#fff' },
 });
 
 const FALLBACK_INTERESTS = [
@@ -174,32 +177,32 @@ function FriendRow({ item, isOnline, onPress, colors, isDark }) {
 }
 
 const row = StyleSheet.create({
-  wrap:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
-  info:      { flex: 1, gap: 6 },
-  nameRow:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  name:      { fontSize: 16, fontWeight: '700' },
+  wrap: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, gap: 12 },
+  info: { flex: 1, gap: 6 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  name: { fontSize: 16, fontWeight: '700' },
   onlineDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#22c55e' },
-  tags:      { flexDirection: 'row', gap: 6 },
+  tags: { flexDirection: 'row', gap: 6 },
 });
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function FriendsScreen({ navigation }) {
-  const { onlineUsers }  = useSocket();
+  const { onlineUsers } = useSocket();
   const { colors, isDark } = useTheme();
 
-  const [friends, setFriends]     = useState([]);
-  const [requests, setRequests]   = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [friends, setFriends] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch]       = useState('');
+  const [search, setSearch] = useState('');
 
   useFocusEffect(useCallback(() => { load(); }, []));
 
   const load = async () => {
     try {
       const [fRes, rRes] = await Promise.all([friendsAPI.list(), friendsAPI.requests()]);
-      if (fRes.success)  setFriends(fRes.data.friends || []);
-      if (rRes.success)  setRequests(rRes.data.requests || []);
+      if (fRes.success) setFriends(fRes.data.friends || []);
+      if (rRes.success) setRequests(rRes.data.requests || []);
     } catch { /* silent */ }
     finally { setLoading(false); setRefreshing(false); }
   };

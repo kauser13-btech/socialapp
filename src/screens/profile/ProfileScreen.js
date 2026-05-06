@@ -11,7 +11,7 @@ export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
   const { colors, isDark } = useTheme();
   const [earnedBadges, setEarnedBadges] = useState([]);
-  const [totalCount, setTotalCount]     = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     analyticsAPI.getBadges()
@@ -21,7 +21,7 @@ export default function ProfileScreen({ navigation }) {
           setTotalCount(r.data.total_count ?? 0);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const menuItems = [
@@ -34,12 +34,12 @@ export default function ProfileScreen({ navigation }) {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        
+
         {/* Header Section */}
         <View style={styles.header}>
           <View style={styles.avatarWrap}>
             <Avatar user={user} size="xlarge" />
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.editAvatarBtn, { backgroundColor: colors.primary, borderColor: colors.background }]}
               onPress={() => navigation.navigate('EditProfile')}
               activeOpacity={0.8}
@@ -47,7 +47,7 @@ export default function ProfileScreen({ navigation }) {
               <Icon name="pencil" size={14} color="#fff" />
             </TouchableOpacity>
           </View>
-          
+
           <Text style={[styles.name, { color: colors.textPrimary }]}>
             {user?.name || user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : 'User'}
           </Text>
@@ -55,7 +55,7 @@ export default function ProfileScreen({ navigation }) {
             @{user?.username || 'username'}
           </Text>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.editProfileBtn, { backgroundColor: isDark ? colors.cardBackground : '#f3f4f6' }]}
             onPress={() => navigation.navigate('EditProfile')}
             activeOpacity={0.7}
@@ -130,8 +130,8 @@ export default function ProfileScreen({ navigation }) {
 
         {/* Logout Section */}
         <View style={styles.logoutSection}>
-          <TouchableOpacity 
-            style={styles.logoutBtn} 
+          <TouchableOpacity
+            style={styles.logoutBtn}
             onPress={logout}
             activeOpacity={0.7}
           >
@@ -147,16 +147,16 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1 
+  container: {
+    flex: 1
   },
   scrollContent: {
     paddingBottom: 40,
   },
 
   /* Header */
-  header: { 
-    alignItems: 'center', 
+  header: {
+    alignItems: 'center',
     paddingTop: 32,
     paddingBottom: 32,
     paddingHorizontal: 24,
@@ -176,15 +176,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  name: { 
-    fontSize: 24, 
-    fontWeight: '700', 
+  name: {
+    fontSize: 24,
+    fontWeight: '700',
     letterSpacing: -0.5,
     marginBottom: 4,
   },
-  username: { 
+  username: {
     fontSize: 15,
-    marginBottom: 20, 
+    marginBottom: 20,
   },
   editProfileBtn: {
     paddingHorizontal: 20,
@@ -236,9 +236,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
-  menuItem: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
@@ -250,10 +250,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 16,
   },
-  menuTitle: { 
-    flex: 1, 
+  menuTitle: {
+    flex: 1,
     fontSize: 16,
-    fontWeight: '500', 
+    fontWeight: '500',
   },
 
   /* Logout */
