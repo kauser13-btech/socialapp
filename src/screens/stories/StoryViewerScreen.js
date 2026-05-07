@@ -8,7 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import Video from 'react-native-video';
 import { useAuth } from '../../contexts/AuthContext';
-import { storiesAPI, messagesAPI, fixImageUrl, fixVideoUrl } from '../../lib/api';
+import { storiesAPI, messagesAPI, preferencesAPI, fixImageUrl, fixVideoUrl } from '../../lib/api';
 
 const { width: W, height: H } = Dimensions.get('window');
 const IMAGE_DURATION  = 5000;
@@ -100,7 +100,7 @@ function StoryMedia({ story, groupIdx, paused, muted, onVideoLoad, onVideoEnd })
     : FALLBACK_COLORS[groupIdx % FALLBACK_COLORS.length];
   const mediaUri = isVideo ? fixVideoUrl(story.image_url) : fixImageUrl(story.image_url);
   const videoType = mediaUri?.toLowerCase().endsWith('.mov') ? 'video/mp4' : undefined;
-
+  console.log('mediaUri', mediaUri);
   if (isCard) {
     const [gradTop, gradBot] = catGradient(story.preference?.category?.name);
     return (
@@ -131,7 +131,7 @@ function StoryMedia({ story, groupIdx, paused, muted, onVideoLoad, onVideoEnd })
         mediaUri && !imgErr && (
           <Image
             source={{ uri: mediaUri }}
-            style={med.img}
+            style={med.full}
             resizeMode="cover"
             onError={() => setImgErr(true)}
           />
@@ -145,13 +145,84 @@ function StoryMedia({ story, groupIdx, paused, muted, onVideoLoad, onVideoEnd })
 const med = StyleSheet.create({
   full:        { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   gradOverlay: { position: 'absolute', top: 0, left: 0, right: 0, height: H * 0.55, opacity: 0.85 },
-  img:         { width: W, height: H },
   shadTop:     { position: 'absolute', top: 0, left: 0, right: 0, height: 180, backgroundColor: 'rgba(0,0,0,0.45)' },
   shadBot:     { position: 'absolute', bottom: 0, left: 0, right: 0, height: 220, backgroundColor: 'rgba(0,0,0,0.55)' },
 });
 
+// ── Inline preference save card (used by video stories above the reply bar) ──
+function PinnedPrefCard({ story, isSaved, onSave }) {
+  const pref     = story.preference;
+  const catName  = pref?.category?.name;
+  const subtitle = pref?.subtitle || pref?.author || pref?.artist || pref?.location || null;
+  const emoji    = catEmoji(catName);
+  const rating   = pref?.rating ?? 0;
+
+  if (!pref) return null;
+
+  return (
+    <View style={pin.wrap}>
+      <View style={pin.left}>
+        <Text style={pin.emoji}>{emoji}</Text>
+        <View style={pin.meta}>
+          <Text style={pin.catLabel}>{catName ? catName.toUpperCase() : 'PREFERENCE'}</Text>
+          <Text style={pin.title} numberOfLines={1}>{pref.title || 'Untitled'}</Text>
+          {!!subtitle && (
+            <Text style={pin.subtitle} numberOfLines={1}>{subtitle}</Text>
+          )}
+          {rating > 0 && (
+            <View style={pin.starsRow}>
+              {Array.from({ length: 5 }, (_, i) => (
+                <Icon key={i} name={i < rating ? 'star' : 'star-outline'} size={10} color="#f59e0b" />
+              ))}
+            </View>
+          )}
+          {isSaved && (
+            <Text style={pin.savedEyebrow}>Saved to {catName || 'Preferences'} · Just now</Text>
+          )}
+        </View>
+      </View>
+      {!!onSave && (
+        <TouchableOpacity
+          style={[pin.saveBtn, isSaved && pin.saveBtnActive]}
+          onPress={onSave}
+          activeOpacity={0.75}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Icon name={isSaved ? 'bookmark' : 'bookmark-outline'} size={14} color="#fff" />
+          <Text style={pin.saveTxt}>{isSaved ? '✓ Saved' : 'Save'}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+const pin = StyleSheet.create({
+  wrap: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 16, marginHorizontal: 14, marginBottom: 8,
+    padding: 12, gap: 10,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+  },
+  left:       { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  emoji:      { fontSize: 22 },
+  meta:       { flex: 1 },
+  catLabel:   { color: 'rgba(255,255,255,0.55)', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  title:      { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 1 },
+  subtitle:   { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 1 },
+  starsRow:   { flexDirection: 'row', gap: 2, marginTop: 3 },
+  savedEyebrow: { color: '#4ade80', fontSize: 10, marginTop: 3, fontWeight: '600' },
+  saveBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+  },
+  saveBtnActive: { backgroundColor: '#6B63F5', borderColor: '#6B63F5' },
+  saveTxt:    { color: '#fff', fontSize: 12, fontWeight: '700' },
+});
+
 // ── Card story rich content ───────────────────────────────────────────────────
-function CardStoryContent({ story }) {
+function CardStoryContent({ story, isSaved, onSave }) {
   const pref     = story.preference;
   const catName  = pref?.category?.name;
   const emoji    = catEmoji(catName);
@@ -192,11 +263,30 @@ function CardStoryContent({ story }) {
             </View>
           )}
         </View>
+
+        {/* Inline save button — bottom-right corner of the card */}
+        {pref && (
+          <TouchableOpacity
+            style={[card.saveBtn, isSaved && card.saveBtnActive]}
+            onPress={onSave}
+            activeOpacity={0.75}
+          >
+            <Icon name={isSaved ? 'bookmark' : 'bookmark-outline'} size={15} color="#fff" />
+            <Text style={card.saveTxt}>{isSaved ? '✓ Saved' : 'Save'}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Caption / quote */}
       {!!story.caption && (
         <Text style={card.caption} numberOfLines={3}>"{story.caption}"</Text>
+      )}
+
+      {/* Eyebrow confirmation after saving */}
+      {isSaved && (
+        <Text style={card.savedEyebrow}>
+          Saved to {catName || 'Preferences'} · Just now
+        </Text>
       )}
     </View>
   );
@@ -248,6 +338,17 @@ const card = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
   },
+  saveBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 14, paddingVertical: 8,
+    margin: 12, marginTop: 0,
+    borderRadius: 20, alignSelf: 'flex-end',
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  saveBtnActive: { backgroundColor: '#6B63F5', borderColor: '#6B63F5' },
+  saveTxt:       { color: '#fff', fontSize: 12, fontWeight: '700' },
+  savedEyebrow:  { color: '#4ade80', fontSize: 11, fontWeight: '600', marginTop: 10 },
 });
 
 // ── Viewers sheet ─────────────────────────────────────────────────────────────
@@ -429,9 +530,10 @@ export default function StoryViewerScreen({ route, navigation }) {
   const [groupIdx, setGroupIdx]   = useState(Math.max(0, groups.findIndex(g => g.user.id === startUserId)));
   const [storyIdx, setStoryIdx]   = useState(0);
   const [paused, setPaused]       = useState(false);
-  const [muted, setMuted]         = useState(false);
+  const [muted, setMuted]         = useState(true);
   const [showViewers, setShowViewers] = useState(false);
   const [videoDuration, setVideoDuration] = useState(IMAGE_DURATION);
+  const [savedPrefIds, setSavedPrefIds] = useState(new Set());
 
   const timerRef  = useRef(null);
   const viewedRef = useRef(new Set());
@@ -443,6 +545,33 @@ export default function StoryViewerScreen({ route, navigation }) {
   const authorName   = getUsername(author);
   const isVideo      = currentStory?.media_type === 'video';
   const isCard       = currentStory?.media_type === 'card';
+  const isMedia      = isVideo || currentStory?.media_type === 'image';
+
+  const currentPrefId = currentStory?.preference?.id;
+  const isPrefSaved   = currentPrefId != null && savedPrefIds.has(currentPrefId);
+
+  const handleSave = useCallback(async () => {
+    if (!currentPrefId) return;
+    const wasSaved = savedPrefIds.has(currentPrefId);
+    setSavedPrefIds(prev => {
+      const next = new Set(prev);
+      wasSaved ? next.delete(currentPrefId) : next.add(currentPrefId);
+      return next;
+    });
+    try {
+      if (wasSaved) {
+        await preferencesAPI.unsave(currentPrefId);
+      } else {
+        await preferencesAPI.save(currentPrefId);
+      }
+    } catch {
+      setSavedPrefIds(prev => {
+        const next = new Set(prev);
+        wasSaved ? next.add(currentPrefId) : next.delete(currentPrefId);
+        return next;
+      });
+    }
+  }, [currentPrefId, savedPrefIds]);
 
   // Duration used for the progress bar — actual video length or default 5 s
   const storyDuration = isVideo ? videoDuration : IMAGE_DURATION;
@@ -602,17 +731,28 @@ export default function StoryViewerScreen({ route, navigation }) {
               onPress={advance}
               activeOpacity={1}
             />
-            {/* Card content sits as a non-interactive overlay inside the tap zone area */}
+            {/* Card content — interactive so the Save button works */}
             {isCard && (
-              <View style={st.cardContent} pointerEvents="none">
-                <CardStoryContent story={currentStory} />
+              <View style={st.cardContent} pointerEvents="box-none">
+                <CardStoryContent
+                  story={currentStory}
+                  isSaved={isPrefSaved}
+                  onSave={handleSave}
+                />
               </View>
             )}
           </View>
 
-          {/* Bottom: caption (non-card) + reply bar */}
+          {/* Bottom: caption (non-card) + pinned pref card (video/image) + reply bar */}
           <View style={st.bottom}>
             {!isCard && <CaptionCard story={currentStory} />}
+            {isMedia && currentStory?.preference && (
+              <PinnedPrefCard
+                story={currentStory}
+                isSaved={isPrefSaved}
+                onSave={isOwn ? null : handleSave}
+              />
+            )}
             {!isOwn && (
               <ReplyBar
                 authorName={authorName}

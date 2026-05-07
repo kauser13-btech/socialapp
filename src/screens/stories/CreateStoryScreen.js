@@ -244,9 +244,11 @@ export default function CreateStoryScreen({ navigation, route }) {
     }
   }, [storyType]);
 
-  const recordVideo = useCallback(async () => {
+  const openCamera = useCallback(async () => {
     const result = await launchCamera({
-      mediaType: 'video',
+      mediaType: storyType === 'video' ? 'video' : 'photo',
+      quality: 0.85,
+      maxWidth: 1080,
       videoQuality: 'medium',
       durationLimit: 15,
       saveToPhotos: false,
@@ -254,7 +256,7 @@ export default function CreateStoryScreen({ navigation, route }) {
     if (!result.didCancel && result.assets?.[0]) {
       setMediaFile(result.assets[0]);
     }
-  }, []);
+  }, [storyType]);
 
   const handleTypeChange = (key) => {
     setStoryType(key);
@@ -278,7 +280,7 @@ export default function CreateStoryScreen({ navigation, route }) {
       const cap = caption.trim() || null;
       const res = storyType === 'card'
         ? await storiesAPI.createFromCard(selectedPref.id, cap, audience)
-        : await storiesAPI.create(mediaFile, cap, audience);
+        : await storiesAPI.create(mediaFile, cap, audience, selectedPref.id);
 
       if (res.success) {
         const story    = res.data.story;
@@ -381,15 +383,9 @@ export default function CreateStoryScreen({ navigation, route }) {
             {/* media picker for photo/video */}
             {storyType !== 'card' && (
               <>
-                <TouchableOpacity
-                  style={[s.mediaPicker, {
-                    borderColor: colors.border,
-                    backgroundColor: isDark ? colors.cardBackground : '#f8fafc',
-                  }]}
-                  onPress={pickMedia}
-                  activeOpacity={0.8}
-                >
-                  {mediaFile ? (
+                {/* Preview */}
+                {mediaFile && (
+                  <View style={[s.mediaPicker, { borderColor: colors.border, backgroundColor: isDark ? colors.cardBackground : '#f8fafc' }]}>
                     <View style={s.mediaImgWrap}>
                       <Image source={{ uri: mediaFile.uri }} style={s.mediaImg} resizeMode="cover" />
                       {storyType === 'video' && (
@@ -401,26 +397,31 @@ export default function CreateStoryScreen({ navigation, route }) {
                         </View>
                       )}
                     </View>
-                  ) : (
-                    <View style={s.mediaEmpty}>
-                      <Icon name={storyType === 'video' ? 'videocam-outline' : 'image-outline'} size={30} color={colors.textTertiary} />
-                      <Text style={[s.mediaEmptyTxt, { color: colors.textSecondary }]}>
-                        {storyType === 'video' ? 'Pick from library (max 15s)' : 'Pick a photo'}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                  </View>
+                )}
 
-                {storyType === 'video' && (
+                {/* Camera + Library buttons */}
+                <View style={s.mediaButtonRow}>
                   <TouchableOpacity
-                    style={[s.recordBtn, { backgroundColor: colors.primary }]}
-                    onPress={recordVideo}
+                    style={[s.mediaBtn, { borderColor: colors.border, backgroundColor: isDark ? colors.cardBackground : '#f8fafc' }]}
+                    onPress={openCamera}
                     activeOpacity={0.8}
                   >
-                    <Icon name="radio-button-on" size={18} color="#fff" />
-                    <Text style={s.recordTxt}>Record 15s video</Text>
+                    <Icon name={storyType === 'video' ? 'videocam-outline' : 'camera-outline'} size={22} color={colors.primary} />
+                    <Text style={[s.mediaBtnTxt, { color: colors.textPrimary }]}>
+                      {storyType === 'video' ? 'Record' : 'Camera'}
+                    </Text>
                   </TouchableOpacity>
-                )}
+
+                  <TouchableOpacity
+                    style={[s.mediaBtn, { borderColor: colors.border, backgroundColor: isDark ? colors.cardBackground : '#f8fafc' }]}
+                    onPress={pickMedia}
+                    activeOpacity={0.8}
+                  >
+                    <Icon name={storyType === 'video' ? 'film-outline' : 'image-outline'} size={22} color={colors.primary} />
+                    <Text style={[s.mediaBtnTxt, { color: colors.textPrimary }]}>Library</Text>
+                  </TouchableOpacity>
+                </View>
               </>
             )}
           </View>
@@ -515,15 +516,14 @@ const s = StyleSheet.create({
   typeTile: { flex: 1, borderWidth: 2, borderRadius: 14, paddingVertical: 16, alignItems: 'center', gap: 7 },
   typeLbl:  { fontSize: 12, fontWeight: '700' },
 
-  mediaPicker:  { marginTop: 12, height: 160, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
-  mediaImgWrap: { flex: 1 },
-  mediaImg:     { width: '100%', height: '100%' },
-  videoOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.25)' },
-  videoDur:     { color: '#fff', fontSize: 12, fontWeight: '700', backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  mediaEmpty:   { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  mediaEmptyTxt: { fontSize: 13 },
-  recordBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 10, paddingVertical: 12, borderRadius: 14 },
-  recordTxt:    { color: '#fff', fontSize: 14, fontWeight: '700' },
+  mediaPicker:    { marginTop: 12, height: 160, borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
+  mediaImgWrap:   { flex: 1 },
+  mediaImg:       { width: '100%', height: '100%' },
+  videoOverlay:   { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: 'rgba(0,0,0,0.25)' },
+  videoDur:       { color: '#fff', fontSize: 12, fontWeight: '700', backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  mediaButtonRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  mediaBtn:       { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 14, borderWidth: 1 },
+  mediaBtnTxt:    { fontSize: 14, fontWeight: '700' },
 
   captionInput: {
     fontSize: 15, lineHeight: 22, minHeight: 80,

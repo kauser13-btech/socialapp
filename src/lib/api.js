@@ -156,10 +156,11 @@ const _apiOrigin = (() => {
   try { return new URL(apiBaseUrl).origin; } catch { return ''; }
 })();
 export function fixImageUrl(url) {
+  return url;
   if (!url || !_apiOrigin) return url;
   try {
     const u = new URL(url);
-    if (u.origin !== _apiOrigin) {
+    if (u.hostname === 'localhost' || u.hostname === '127.0.0.1') {
       return _apiOrigin + u.pathname + u.search + u.hash;
     }
   } catch { /* not a valid URL, return as-is */ }
@@ -169,6 +170,7 @@ export function fixImageUrl(url) {
 // Rewrites /storage/<path> to /storage-stream/<path> so iOS AVFoundation gets
 // byte-range (206) responses. php artisan serve cannot serve Accept-Ranges.
 export function fixVideoUrl(url) {
+  return url;
   const fixed = fixImageUrl(url);
   if (!fixed) return fixed;
   return fixed.replace(/\/storage\//, '/storage-stream/');
@@ -406,8 +408,8 @@ export const collectionsAPI = {
 // Analytics API
 export const storiesAPI = {
   list:           () => api.get('/stories'),
-  create:         (file, caption, visibility = 'friends') =>
-    api.upload('/stories', file, 'image', { caption, visibility }),
+  create:         (file, caption, visibility = 'friends', preferenceId = null) =>
+    api.upload('/stories', file, 'image', { caption, visibility, preference_id: preferenceId }),
   createFromCard: (preferenceId, caption, visibility = 'friends') =>
     api.post('/stories', { preference_id: preferenceId, caption, visibility }),
   view:           (id) => api.post(`/stories/${id}/view`),
