@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Animated,
+  View, Text, StyleSheet, TouchableOpacity,
   Dimensions, StatusBar, ScrollView, Image,
   ActivityIndicator, TextInput, PanResponder, KeyboardAvoidingView, Platform,
 } from 'react-native';
@@ -11,7 +11,6 @@ import { useAuth } from '../../contexts/AuthContext';
 import { storiesAPI, messagesAPI, preferencesAPI, fixImageUrl, fixVideoUrl } from '../../lib/api';
 
 const { width: W, height: H } = Dimensions.get('window');
-const IMAGE_DURATION  = 5000;
 const SWIPE_THRESHOLD = 60;
 
 const FALLBACK_COLORS = ['#f97316', '#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ec4899'];
@@ -66,41 +65,19 @@ function getUsername(user) {
   return user?.name || user?.first_name || user?.username || 'User';
 }
 
-// ── Progress bar segment ──────────────────────────────────────────────────────
-function ProgressSegment({ active, done, duration }) {
-  const anim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    anim.setValue(done ? 1 : 0);
-    if (active) {
-      Animated.timing(anim, { toValue: 1, duration, useNativeDriver: false }).start();
-    } else if (!done) {
-      anim.setValue(0);
-    }
-  }, [active, done, duration]);
-
-  return (
-    <View style={seg.track}>
-      <Animated.View style={[seg.fill, { width: anim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
-    </View>
-  );
-}
-const seg = StyleSheet.create({
-  track: { flex: 1, height: 2.5, backgroundColor: 'rgba(255,255,255,0.35)', borderRadius: 2, overflow: 'hidden' },
-  fill:  { height: '100%', backgroundColor: '#fff', borderRadius: 2 },
-});
-
 // ── Story background — image or video ────────────────────────────────────────
-function StoryMedia({ story, groupIdx, paused, muted, onVideoLoad, onVideoEnd }) {
-  const [imgErr, setImgErr] = useState(false);
-  const isCard   = story.media_type === 'card';
-  const isVideo  = story.media_type === 'video';
-  const fallback = isCard
-    ? catGradient(story.preference?.category?.name)[0]
-    : FALLBACK_COLORS[groupIdx % FALLBACK_COLORS.length];
-  const mediaUri = isVideo ? fixVideoUrl(story.image_url) : fixImageUrl(story.image_url);
+// Images stay visible indefinitely. Videos loop forever.
+// A black background is shown while media loads to avoid the fallback-color flash.
+function StoryMedia({ story, groupIdx, paused, muted, onVideoLoad }) {
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [imgErr,    setImgErr]    = useState(false);
+  const isCard  = story.media_type === 'card';
+  const isVideo = story.media_type === 'video';
+
+  const mediaUri  = isVideo ? fixVideoUrl(story.image_url) : fixImageUrl(story.image_url);
   const videoType = mediaUri?.toLowerCase().endsWith('.mov') ? 'video/mp4' : undefined;
-  console.log('mediaUri', mediaUri);
+  const fallback  = FALLBACK_COLORS[groupIdx % FALLBACK_COLORS.length];
+
   if (isCard) {
     const [gradTop, gradBot] = catGradient(story.preference?.category?.name);
     return (
@@ -117,15 +94,14 @@ function StoryMedia({ story, groupIdx, paused, muted, onVideoLoad, onVideoEnd })
           source={{ uri: mediaUri, type: videoType }}
           style={med.full}
           resizeMode="cover"
-          repeat={false}
+          repeat={true}
           paused={paused}
           muted={muted}
-          onLoad={(e) => { console.log('[StoryVideo] loaded, duration:', e.duration); onVideoLoad(e); }}
-          onEnd={onVideoEnd}
+          onLoad={onVideoLoad}
           onError={(e) => console.warn('[StoryVideo] error:', JSON.stringify(e))}
-          onReadyForDisplay={() => console.log('[StoryVideo] ready for display')}
-          onBuffer={(e) => console.log('[StoryVideo] buffering:', e.isBuffering)}
           ignoreSilentSwitch="ignore"
+          playInBackground={false}
+          playWhenInactive={false}
         />
       ) : (
         mediaUri && !imgErr && (
@@ -133,9 +109,18 @@ function StoryMedia({ story, groupIdx, paused, muted, onVideoLoad, onVideoEnd })
             source={{ uri: mediaUri }}
             style={med.full}
             resizeMode="cover"
+            onLoad={() => setImgLoaded(true)}
             onError={() => setImgErr(true)}
           />
         )
+      )}
+      {/* Loading spinner shown only until media is ready */}
+      {!isVideo && !imgLoaded && !imgErr && (
+        <ActivityIndicator
+          style={med.loader}
+          color="rgba(255,255,255,0.6)"
+          size="large"
+        />
       )}
       <View style={med.shadTop} />
       <View style={med.shadBot} />
@@ -145,11 +130,12 @@ function StoryMedia({ story, groupIdx, paused, muted, onVideoLoad, onVideoEnd })
 const med = StyleSheet.create({
   full:        { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   gradOverlay: { position: 'absolute', top: 0, left: 0, right: 0, height: H * 0.55, opacity: 0.85 },
+  loader:      { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
   shadTop:     { position: 'absolute', top: 0, left: 0, right: 0, height: 180, backgroundColor: 'rgba(0,0,0,0.45)' },
   shadBot:     { position: 'absolute', bottom: 0, left: 0, right: 0, height: 220, backgroundColor: 'rgba(0,0,0,0.55)' },
 });
 
-// ── Inline preference save card (used by video stories above the reply bar) ──
+// ── Inline preference save card ───────────────────────────────────────────────
 function PinnedPrefCard({ story, isSaved, onSave }) {
   const pref     = story.preference;
   const catName  = pref?.category?.name;
@@ -166,9 +152,7 @@ function PinnedPrefCard({ story, isSaved, onSave }) {
         <View style={pin.meta}>
           <Text style={pin.catLabel}>{catName ? catName.toUpperCase() : 'PREFERENCE'}</Text>
           <Text style={pin.title} numberOfLines={1}>{pref.title || 'Untitled'}</Text>
-          {!!subtitle && (
-            <Text style={pin.subtitle} numberOfLines={1}>{subtitle}</Text>
-          )}
+          {!!subtitle && <Text style={pin.subtitle} numberOfLines={1}>{subtitle}</Text>}
           {rating > 0 && (
             <View style={pin.starsRow}>
               {Array.from({ length: 5 }, (_, i) => (
@@ -176,9 +160,7 @@ function PinnedPrefCard({ story, isSaved, onSave }) {
               ))}
             </View>
           )}
-          {isSaved && (
-            <Text style={pin.savedEyebrow}>Saved to {catName || 'Preferences'} · Just now</Text>
-          )}
+          {isSaved && <Text style={pin.savedEyebrow}>Saved to {catName || 'Preferences'} · Just now</Text>}
         </View>
       </View>
       {!!onSave && (
@@ -203,13 +185,13 @@ const pin = StyleSheet.create({
     padding: 12, gap: 10,
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
   },
-  left:       { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  emoji:      { fontSize: 22 },
-  meta:       { flex: 1 },
-  catLabel:   { color: 'rgba(255,255,255,0.55)', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
-  title:      { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 1 },
-  subtitle:   { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 1 },
-  starsRow:   { flexDirection: 'row', gap: 2, marginTop: 3 },
+  left:         { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  emoji:        { fontSize: 22 },
+  meta:         { flex: 1 },
+  catLabel:     { color: 'rgba(255,255,255,0.55)', fontSize: 9, fontWeight: '700', letterSpacing: 1 },
+  title:        { color: '#fff', fontSize: 13, fontWeight: '700', marginTop: 1 },
+  subtitle:     { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 1 },
+  starsRow:     { flexDirection: 'row', gap: 2, marginTop: 3 },
   savedEyebrow: { color: '#4ade80', fontSize: 10, marginTop: 3, fontWeight: '600' },
   saveBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
@@ -218,41 +200,34 @@ const pin = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
   },
   saveBtnActive: { backgroundColor: '#6B63F5', borderColor: '#6B63F5' },
-  saveTxt:    { color: '#fff', fontSize: 12, fontWeight: '700' },
+  saveTxt:       { color: '#fff', fontSize: 12, fontWeight: '700' },
 });
 
 // ── Card story rich content ───────────────────────────────────────────────────
 function CardStoryContent({ story, isSaved, onSave }) {
-  const pref     = story.preference;
-  const catName  = pref?.category?.name;
-  const emoji    = catEmoji(catName);
-  const heroImg  = pref?.images?.[0]?.url;
-  const rating   = pref?.rating ?? 0;
-  const label    = catName ? catName.toUpperCase() : 'PREFERENCE';
+  const pref    = story.preference;
+  const catName = pref?.category?.name;
+  const emoji   = catEmoji(catName);
+  const heroImg = pref?.images?.[0]?.url;
+  const rating  = pref?.rating ?? 0;
+  const label   = catName ? catName.toUpperCase() : 'PREFERENCE';
 
   return (
     <View style={card.wrap}>
-      {/* "Currently reading / watching / etc." label */}
       <View style={card.activityRow}>
         <Text style={card.activityEmoji}>{emoji}</Text>
         <Text style={card.activityLabel}>{label}</Text>
       </View>
-
-      {/* Preference card */}
       <View style={card.prefCard}>
-        {/* Cover image */}
         <View style={card.coverWrap}>
           {heroImg
             ? <Image source={{ uri: heroImg }} style={card.cover} resizeMode="cover" />
             : <View style={[card.cover, card.coverFallback]} />}
-          {/* Category badge */}
           <View style={card.catBadge}>
             <Text style={card.catBadgeEmoji}>{emoji}</Text>
             <Text style={card.catBadgeTxt}>{catName || 'Card'}</Text>
           </View>
         </View>
-
-        {/* Info section */}
         <View style={card.infoWrap}>
           <Text style={card.title} numberOfLines={2}>{pref?.title || 'Untitled'}</Text>
           {rating > 0 && (
@@ -263,8 +238,6 @@ function CardStoryContent({ story, isSaved, onSave }) {
             </View>
           )}
         </View>
-
-        {/* Inline save button — bottom-right corner of the card */}
         {pref && (
           <TouchableOpacity
             style={[card.saveBtn, isSaved && card.saveBtnActive]}
@@ -276,48 +249,23 @@ function CardStoryContent({ story, isSaved, onSave }) {
           </TouchableOpacity>
         )}
       </View>
-
-      {/* Caption / quote */}
       {!!story.caption && (
         <Text style={card.caption} numberOfLines={3}>"{story.caption}"</Text>
       )}
-
-      {/* Eyebrow confirmation after saving */}
       {isSaved && (
-        <Text style={card.savedEyebrow}>
-          Saved to {catName || 'Preferences'} · Just now
-        </Text>
+        <Text style={card.savedEyebrow}>Saved to {catName || 'Preferences'} · Just now</Text>
       )}
     </View>
   );
 }
 const card = StyleSheet.create({
-  wrap: {
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-  },
-  activityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 14,
-  },
+  wrap:          { alignItems: 'center', paddingHorizontal: 24, paddingBottom: 16 },
+  activityRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 },
   activityEmoji: { fontSize: 14 },
-  activityLabel: {
-    color: 'rgba(255,255,255,0.75)',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  prefCard: {
-    width: W - 64,
-    borderRadius: 18,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  coverWrap: { width: '100%', height: (W - 64) * 0.65 },
-  cover:     { width: '100%', height: '100%' },
+  activityLabel: { color: 'rgba(255,255,255,0.75)', fontSize: 11, fontWeight: '700', letterSpacing: 1.5 },
+  prefCard:      { width: W - 64, borderRadius: 18, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.35)' },
+  coverWrap:     { width: '100%', height: (W - 64) * 0.65 },
+  cover:         { width: '100%', height: '100%' },
   coverFallback: { backgroundColor: 'rgba(255,255,255,0.15)' },
   catBadge: {
     position: 'absolute', top: 10, left: 10,
@@ -327,17 +275,10 @@ const card = StyleSheet.create({
   },
   catBadgeEmoji: { fontSize: 11 },
   catBadgeTxt:   { fontSize: 10, fontWeight: '800', color: '#c2410c', letterSpacing: 0.3 },
-  infoWrap: { padding: 14 },
-  title:    { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: -0.3, marginBottom: 6 },
-  starsRow: { flexDirection: 'row', gap: 2 },
-  caption: {
-    marginTop: 14,
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 13,
-    lineHeight: 19,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
+  infoWrap:      { padding: 14 },
+  title:         { color: '#fff', fontSize: 17, fontWeight: '800', letterSpacing: -0.3, marginBottom: 6 },
+  starsRow:      { flexDirection: 'row', gap: 2 },
+  caption:       { marginTop: 14, color: 'rgba(255,255,255,0.85)', fontSize: 13, lineHeight: 19, textAlign: 'center', fontStyle: 'italic' },
   saveBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
     backgroundColor: 'rgba(255,255,255,0.18)',
@@ -414,7 +355,7 @@ const vs = StyleSheet.create({
   empty:    { color: 'rgba(255,255,255,0.4)', textAlign: 'center', marginTop: 24, fontSize: 14 },
 });
 
-// ── Caption / pinned card ─────────────────────────────────────────────────────
+// ── Caption card ──────────────────────────────────────────────────────────────
 function CaptionCard({ story }) {
   if (!story.caption) return null;
   const icon = story.media_type === 'card' ? 'bookmark' : 'chatbubble-ellipses-outline';
@@ -465,7 +406,6 @@ function ReplyBar({ authorName, authorId, onPause, onResume }) {
   return (
     <View style={rb.wrap}>
       <View style={rb.row}>
-        {/* Text input */}
         <TextInput
           style={rb.input}
           placeholder={`Reply to ${authorName}...`}
@@ -478,8 +418,6 @@ function ReplyBar({ authorName, authorId, onPause, onResume }) {
           onSubmitEditing={sendReply}
           submitBehavior="submit"
         />
-
-        {/* When typing: show send button. Otherwise: emoji reactions */}
         {text.trim() ? (
           <TouchableOpacity
             style={rb.sendBtn}
@@ -532,11 +470,13 @@ export default function StoryViewerScreen({ route, navigation }) {
   const [paused, setPaused]       = useState(false);
   const [muted, setMuted]         = useState(true);
   const [showViewers, setShowViewers] = useState(false);
-  const [videoDuration, setVideoDuration] = useState(IMAGE_DURATION);
   const [savedPrefIds, setSavedPrefIds] = useState(new Set());
 
-  const timerRef  = useRef(null);
   const viewedRef = useRef(new Set());
+
+  // Always keep a current-value ref so callbacks never close over stale state
+  const navRef = useRef({ groupIdx, storyIdx });
+  useEffect(() => { navRef.current = { groupIdx, storyIdx }; });
 
   const currentGroup = groups[groupIdx];
   const currentStory = currentGroup?.stories?.[storyIdx];
@@ -559,11 +499,8 @@ export default function StoryViewerScreen({ route, navigation }) {
       return next;
     });
     try {
-      if (wasSaved) {
-        await preferencesAPI.unsave(currentPrefId);
-      } else {
-        await preferencesAPI.save(currentPrefId);
-      }
+      if (wasSaved) await preferencesAPI.unsave(currentPrefId);
+      else          await preferencesAPI.save(currentPrefId);
     } catch {
       setSavedPrefIds(prev => {
         const next = new Set(prev);
@@ -573,13 +510,30 @@ export default function StoryViewerScreen({ route, navigation }) {
     }
   }, [currentPrefId, savedPrefIds]);
 
-  // Duration used for the progress bar — actual video length or default 5 s
-  const storyDuration = isVideo ? videoDuration : IMAGE_DURATION;
+  // Navigate between stories — reads from ref so it is safe to call from anywhere
+  const advance = useCallback(() => {
+    const { groupIdx: gi, storyIdx: si } = navRef.current;
+    const stories = groups[gi]?.stories || [];
+    if (si < stories.length - 1) {
+      setStoryIdx(si + 1);
+    } else if (gi < groups.length - 1) {
+      setGroupIdx(gi + 1);
+      setStoryIdx(0);
+    } else {
+      navigation.goBack();
+    }
+  }, [groups, navigation]);
 
-  // Reset video duration when story changes
-  useEffect(() => {
-    setVideoDuration(IMAGE_DURATION);
-  }, [groupIdx, storyIdx]);
+  const goBack = useCallback(() => {
+    const { groupIdx: gi, storyIdx: si } = navRef.current;
+    if (si > 0) {
+      setStoryIdx(si - 1);
+    } else if (gi > 0) {
+      const prev = groups[gi - 1];
+      setGroupIdx(gi - 1);
+      setStoryIdx(prev.stories.length - 1);
+    }
+  }, [groups]);
 
   // Mark viewed once per session
   useEffect(() => {
@@ -587,35 +541,6 @@ export default function StoryViewerScreen({ route, navigation }) {
     viewedRef.current.add(currentStory.id);
     storiesAPI.view(currentStory.id).catch(() => {});
   }, [currentStory?.id]);
-
-  const advance = useCallback(() => {
-    const stories = currentGroup?.stories || [];
-    if (storyIdx < stories.length - 1) {
-      setStoryIdx(s => s + 1);
-    } else if (groupIdx < groups.length - 1) {
-      setGroupIdx(g => g + 1);
-      setStoryIdx(0);
-    } else {
-      navigation.goBack();
-    }
-  }, [currentGroup, storyIdx, groupIdx, groups.length, navigation]);
-
-  const goBack = useCallback(() => {
-    if (storyIdx > 0) {
-      setStoryIdx(s => s - 1);
-    } else if (groupIdx > 0) {
-      const prev = groups[groupIdx - 1];
-      setGroupIdx(g => g - 1);
-      setStoryIdx(prev.stories.length - 1);
-    }
-  }, [storyIdx, groupIdx, groups]);
-
-  // Auto-advance timer — for images only; videos advance via onEnd
-  useEffect(() => {
-    if (!currentStory || paused || isVideo) return;
-    timerRef.current = setTimeout(advance, storyDuration);
-    return () => clearTimeout(timerRef.current);
-  }, [groupIdx, storyIdx, paused, advance, isVideo, storyDuration]);
 
   // Swipe left/right to jump between user groups
   const panResponder = useRef(
@@ -625,8 +550,8 @@ export default function StoryViewerScreen({ route, navigation }) {
         if (g.dx < -SWIPE_THRESHOLD) {
           setGroupIdx(prev => {
             const next = prev < groups.length - 1 ? prev + 1 : prev;
-            if (next === prev) { navigation.goBack(); }
-            else { setStoryIdx(0); }
+            if (next === prev) navigation.goBack();
+            else setStoryIdx(0);
             return next;
           });
         } else if (g.dx > SWIPE_THRESHOLD) {
@@ -650,28 +575,25 @@ export default function StoryViewerScreen({ route, navigation }) {
     <View style={st.container} {...panResponder.panHandlers}>
       <StatusBar barStyle="light-content" />
 
-      {/* Full-screen media (image or video) */}
+      {/* Full-screen media — image stays, video loops */}
       <StoryMedia
         key={`${groupIdx}-${storyIdx}`}
         story={currentStory}
         groupIdx={groupIdx}
         paused={paused}
         muted={muted}
-        onVideoLoad={e => setVideoDuration((e.duration || 15) * 1000)}
-        onVideoEnd={advance}
+        onVideoLoad={() => {}}
       />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <SafeAreaView style={st.overlay} edges={['top', 'bottom']}>
 
-          {/* Progress bars */}
-          <View style={st.progressRow}>
+          {/* Story dots — simple indicator, no timed progress */}
+          <View style={st.dotsRow}>
             {stories.map((s, i) => (
-              <ProgressSegment
+              <View
                 key={s.id}
-                active={i === storyIdx && !paused}
-                done={i < storyIdx}
-                duration={storyDuration}
+                style={[st.dot, i === storyIdx && st.dotActive]}
               />
             ))}
           </View>
@@ -690,7 +612,6 @@ export default function StoryViewerScreen({ route, navigation }) {
               <Text style={st.headerTime}>{timeAgo(currentStory.created_at)}</Text>
             </View>
 
-            {/* Mute toggle (video only) */}
             {isVideo && (
               <TouchableOpacity
                 style={st.iconBtn}
@@ -701,7 +622,6 @@ export default function StoryViewerScreen({ route, navigation }) {
               </TouchableOpacity>
             )}
 
-            {/* Viewers (own story only) */}
             {isOwn && (
               <TouchableOpacity
                 style={st.eyeBtn}
@@ -721,17 +641,10 @@ export default function StoryViewerScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
 
-          {/* Tap zones + card content share the flex space */}
+          {/* Tap left/right to navigate stories */}
           <View style={st.tapZones}>
             <TouchableOpacity style={st.tapLeft} onPress={goBack} activeOpacity={1} />
-            <TouchableOpacity
-              style={st.tapRight}
-              onPressIn={() => { clearTimeout(timerRef.current); setPaused(true); }}
-              onPressOut={() => setPaused(false)}
-              onPress={advance}
-              activeOpacity={1}
-            />
-            {/* Card content — interactive so the Save button works */}
+            <TouchableOpacity style={st.tapRight} onPress={advance} activeOpacity={1} />
             {isCard && (
               <View style={st.cardContent} pointerEvents="box-none">
                 <CardStoryContent
@@ -743,7 +656,7 @@ export default function StoryViewerScreen({ route, navigation }) {
             )}
           </View>
 
-          {/* Bottom: caption (non-card) + pinned pref card (video/image) + reply bar */}
+          {/* Bottom: caption + pinned pref card + reply bar */}
           <View style={st.bottom}>
             {!isCard && <CaptionCard story={currentStory} />}
             {isMedia && currentStory?.preference && (
@@ -780,7 +693,9 @@ export default function StoryViewerScreen({ route, navigation }) {
 const st = StyleSheet.create({
   container:  { flex: 1, backgroundColor: '#000' },
   overlay:    { flex: 1 },
-  progressRow:{ flexDirection: 'row', paddingHorizontal: 10, paddingTop: 6, gap: 4 },
+  dotsRow:    { flexDirection: 'row', justifyContent: 'center', paddingTop: 8, gap: 6 },
+  dot:        { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.35)' },
+  dotActive:  { backgroundColor: '#fff', width: 18 },
   header:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 10, gap: 10 },
   avatar:     { width: 36, height: 36, borderRadius: 18, borderWidth: 1.5, borderColor: '#fff' },
   avatarPh:   { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#fff' },
@@ -791,9 +706,9 @@ const st = StyleSheet.create({
   iconBtn:    { padding: 4 },
   eyeBtn:     { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 },
   eyeCount:   { color: '#fff', fontSize: 13, fontWeight: '600' },
-  tapZones:    { flex: 1, flexDirection: 'row' },
-  tapLeft:     { flex: 1 },
-  tapRight:    { flex: 2 },
-  cardContent: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
-  bottom:      { justifyContent: 'flex-end' },
+  tapZones:   { flex: 1, flexDirection: 'row' },
+  tapLeft:    { flex: 1 },
+  tapRight:   { flex: 2 },
+  cardContent:{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
+  bottom:     { justifyContent: 'flex-end' },
 });
