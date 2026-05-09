@@ -113,11 +113,9 @@ const DUMMY_SIMILAR = [
   { id: 5, title: 'Normal People', author: 'Sally Rooney', friends: 36, gradient: ['#ec4899', '#db2777'] },
 ];
 
-function SimilarItems({ categoryName, textPrimary }) {
+function SimilarItems({ categoryName, textPrimary, cardBackground, textSecondary }) {
   return (
-    <View style={{
-      padding: 16,
-    }}>
+    <View style={{ padding: 16 }}>
       <Text style={[sStyles.title, { color: textPrimary }]}>
         Similar {categoryName || 'Items'} Friends Love
       </Text>
@@ -128,21 +126,16 @@ function SimilarItems({ categoryName, textPrimary }) {
       >
         {DUMMY_SIMILAR.map((item) => (
           <View key={item.id} style={sStyles.card}>
-            {/* Thumbnail with text embedded */}
             <View style={[sStyles.thumb, { backgroundColor: item.gradient[0] }]}>
-              <View style={{ backgroundColor: '#ffffff' }} />
-              {/* Dark gradient scrim at bottom */}
-              {/* <View style={sStyles.thumbScrim} /> */}
-              <View style={sStyles.thumbContent}>
-                <Text style={sStyles.thumbTitle} numberOfLines={2}>{item.title}</Text>
-                <Text style={sStyles.thumbAuthor} numberOfLines={2}>{item.author} . {item.friends} friends</Text>
+              <View style={[sStyles.thumbContent, { backgroundColor: cardBackground }]}>
+                <Text style={[sStyles.thumbTitle, { color: textPrimary }]} numberOfLines={2}>{item.title}</Text>
+                <Text style={[sStyles.thumbAuthor, { color: textSecondary }]} numberOfLines={2}>{item.author} · {item.friends} friends</Text>
               </View>
             </View>
           </View>
-        ))
-        }
-      </ScrollView >
-    </View >
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -170,7 +163,7 @@ const sStyles = StyleSheet.create({
     height: '40%',
   },
   thumbTitle: { fontSize: 13, fontWeight: '700', lineHeight: 17, marginBottom: 3 },
-  thumbAuthor: { color: 'rgba(173, 173, 173)', fontSize: 11, fontWeight: '500', marginBottom: 5 },
+  thumbAuthor: { fontSize: 11, fontWeight: '500', marginBottom: 5 },
   friendsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   friendsText: { color: 'rgba(255,255,255,0.85)', fontSize: 11, fontWeight: '600' },
 });
@@ -429,16 +422,12 @@ export default function PreferenceDetailScreen({ route }) {
           </View>
 
 
-          <View style={{
-            paddingVertical: 16,
-            backgroundColor: "#f4f4f4",
-
-          }}>
+          <View style={{ paddingVertical: 16, backgroundColor: isDark ? colors.background : '#f4f4f4' }}>
 
             {/* Action buttons */}
-            <View style={styles.actionRow}>
+            <View style={[styles.actionRow, { backgroundColor: isDark ? colors.cardBackground : '#fff' }]}>
               <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnOutline, { backgroundColor: "#edededff", borderColor: colors.border }]}
+                style={[styles.actionBtn, styles.actionBtnOutline, { backgroundColor: isDark ? colors.background : '#ededed', borderColor: colors.border }]}
                 onPress={handleEditNote}
                 activeOpacity={0.7}
               >
@@ -454,7 +443,7 @@ export default function PreferenceDetailScreen({ route }) {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnOutline, { backgroundColor: "#fff0f0ff", borderColor: "#ffe1e1ff" }]}
+                style={[styles.actionBtn, styles.actionBtnOutline, { backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#fff0f0', borderColor: isDark ? 'rgba(239,68,68,0.3)' : '#ffe1e1' }]}
                 onPress={handleRemove}
                 activeOpacity={0.7}
               >
@@ -464,9 +453,10 @@ export default function PreferenceDetailScreen({ route }) {
 
             {/* Similar items */}
             <SimilarItems
-              style={{ padding: 16 }}
               categoryName={preference.category?.name}
               textPrimary={colors.textPrimary}
+              textSecondary={colors.textSecondary}
+              cardBackground={colors.cardBackground}
             />
 
           </View>

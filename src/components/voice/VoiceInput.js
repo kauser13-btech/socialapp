@@ -38,7 +38,9 @@ export default function VoiceInput({ onProcessed, colors }) {
       });
     };
     Voice.onSpeechError = (e) => {
-      setError(e.error?.message || 'Recognition error');
+      const code = e.error?.code;
+      const msg = e.error?.message || 'Recognition error';
+      setError(code ? `${msg} (code ${code})` : msg);
       setState('idle');
       stopPulse();
     };
@@ -87,13 +89,18 @@ export default function VoiceInput({ onProcessed, colors }) {
     const ok = await requestPermission();
     if (!ok) { setError('Microphone permission required.'); return; }
     try {
+      const available = await Voice.isAvailable();
+      if (!available) {
+        setError('Speech recognition is not available on this device.');
+        return;
+      }
       setState('listening');
       startPulse();
       await Voice.start('en-US');
-    } catch {
+    } catch (e) {
       setState('idle');
       stopPulse();
-      setError('Could not start recording.');
+      setError(e?.message || 'Could not start recording.');
     }
   };
 

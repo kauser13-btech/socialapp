@@ -160,7 +160,7 @@ export default function FeedScreen({ navigation }) {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
 
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
         <Image
           source={require('../../../assets/logo_text.png')}
           style={styles.logoImage}
@@ -207,7 +207,7 @@ export default function FeedScreen({ navigation }) {
 
       {/* Feed */}
       <FlatList
-        style={{ backgroundColor: "#F2F2F7" }}
+        style={{ backgroundColor: colors.backgroundDark }}
         data={preferences}
         renderItem={({ item }) => <PreferenceCard preference={item} onUpdate={() => loadFeed(1)} />}
         keyExtractor={(item) => item.id.toString()}

@@ -47,7 +47,7 @@ function getCategoryMeta(name) {
 }
 
 // ─── Single grid card (full-bleed gradient) ───────────────────────────────────
-function DiscoverCard({ item, onPress }) {
+function DiscoverCard({ item, onPress, colors, isDark }) {
   const meta = getCategoryMeta(item.category?.name || item.category);
   const friendsCount = item.friends_count ?? item.saves_count ?? 0;
   const rating = item.rating ? Number(item.rating).toFixed(1) : null;
@@ -55,7 +55,12 @@ function DiscoverCard({ item, onPress }) {
   const separator = item.author && item.location ? ' · ' : '';
   const locationPart = item.location ? `${separator}${item.location}` : '';
   const subtitle = hasSubtitle ? `${item.author || ''}${locationPart}` : null;
-  const [c1, c2] = meta.gradient;
+  const [c1] = meta.gradient;
+
+  const scrimBg = isDark ? 'rgba(15, 15, 26, 0.95)' : 'rgba(255, 255, 255, 1)';
+  const badgeBg = isDark ? 'rgba(30, 30, 46, 0.92)' : 'rgba(255, 255, 255, 0.92)';
+  const emptyStarColor = isDark ? '#4b5563' : '#d1d5db';
+  const subtitleColor = isDark ? colors.textSecondary : 'rgba(183, 183, 183, 0.78)';
 
   return (
     <TouchableOpacity style={cardStyles.wrapper} onPress={onPress} activeOpacity={0.85}>
@@ -63,16 +68,16 @@ function DiscoverCard({ item, onPress }) {
       <View style={[StyleSheet.absoluteFill, { backgroundColor: c1 }]} />
 
       {/* ── Category badge ── */}
-      <View style={cardStyles.categoryBadge}>
+      <View style={[cardStyles.categoryBadge, { backgroundColor: badgeBg }]}>
         <Text style={cardStyles.categoryEmoji}>{meta.emoji}</Text>
         <Text style={cardStyles.categoryLabel}>{item.category?.name || meta.label}</Text>
       </View>
 
       {/* ── Bottom scrim so text is always readable ── */}
-      <View style={cardStyles.scrim}>
-        <Text style={cardStyles.title} numberOfLines={2}>{item.title}</Text>
+      <View style={[cardStyles.scrim, { backgroundColor: scrimBg }]}>
+        <Text style={[cardStyles.title, { color: colors.textPrimary }]} numberOfLines={2}>{item.title}</Text>
         {subtitle ? (
-          <Text style={cardStyles.subtitle} numberOfLines={1}>{subtitle}</Text>
+          <Text style={[cardStyles.subtitle, { color: subtitleColor }]} numberOfLines={1}>{subtitle}</Text>
         ) : null}
         <View style={cardStyles.meta}>
           {rating ? (
@@ -82,14 +87,14 @@ function DiscoverCard({ item, onPress }) {
                   key={star}
                   name="star"
                   size={11}
-                  color={star <= rating ? '#ffd700' : '#d1d5db'}
+                  color={star <= rating ? '#ffd700' : emptyStarColor}
                 />
               ))}
             </View>
           ) : null}
 
           {friendsCount > -1 ? (
-            <Text style={cardStyles.friendsText}>{friendsCount} friends</Text>
+            <Text style={[cardStyles.friendsText, { color: subtitleColor }]}>{friendsCount} friends</Text>
           ) : null}
         </View>
       </View>
@@ -115,7 +120,6 @@ const cardStyles = StyleSheet.create({
     left: 0,
     right: 0,
     height: CARD_HEIGHT * 0.40,
-    backgroundColor: 'rgba(255, 255, 255, 1)',
     padding: 12,
   },
 
@@ -127,7 +131,6 @@ const cardStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.92)',
     paddingHorizontal: 9,
     paddingVertical: 4,
     borderRadius: 20,
@@ -152,7 +155,6 @@ const cardStyles = StyleSheet.create({
   subtitle: {
     fontSize: 13,
     fontWeight: '500',
-    color: 'rgba(183, 183, 183, 0.78)',
   },
   meta: {
     flexDirection: 'row',
@@ -164,7 +166,6 @@ const cardStyles = StyleSheet.create({
   ratingText: { fontSize: 12, fontWeight: '700', color: '#fff' },
   friendsText: {
     fontSize: 11, fontWeight: '500',
-    color: 'rgba(183, 183, 183, 0.78)',
   },
 });
 
@@ -377,7 +378,7 @@ export default function DiscoverScreen({ navigation }) {
       ) : (
         <FlatList
           data={pairs}
-          style={styles.flatList}
+          style={[styles.flatList, { backgroundColor: colors.background }]}
           keyExtractor={(_, i) => i.toString()}
           contentContainerStyle={styles.gridContent}
           showsVerticalScrollIndicator={false}
@@ -393,6 +394,8 @@ export default function DiscoverScreen({ navigation }) {
             <View style={styles.row}>
               <DiscoverCard
                 item={left}
+                colors={colors}
+                isDark={isDark}
                 onPress={() => {
                   if (left._isUser) navigation.navigate('UserProfile', { username: left._user.username });
                   else navigation.navigate('PreferenceDetail', { id: left.id });
@@ -401,6 +404,8 @@ export default function DiscoverScreen({ navigation }) {
               {right ? (
                 <DiscoverCard
                   item={right}
+                  colors={colors}
+                  isDark={isDark}
                   onPress={() => {
                     if (right._isUser) navigation.navigate('UserProfile', { username: right._user.username });
                     else navigation.navigate('PreferenceDetail', { id: right.id });
@@ -428,7 +433,7 @@ export default function DiscoverScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  flatList: { backgroundColor: '#f2f2f7' },
+  flatList: {},
 
   header: {
     paddingHorizontal: 20,

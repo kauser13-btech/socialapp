@@ -37,7 +37,7 @@ function StoryCircle({ group, onPress, onLongPress, colors, isOwn }) {
         )}
         {/* Plus badge: tap = view, long-press = add new */}
         {isOwn && (
-          <View style={[styles.plusBadge, { backgroundColor: colors.primary }]}>
+          <View style={[styles.plusBadge, { backgroundColor: colors.primary, borderColor: colors.background }]}>
             <Icon name="add" size={12} color="#fff" />
           </View>
         )}
@@ -99,14 +99,14 @@ export default function StoriesRow({ navigation }) {
 
   if (loading) {
     return (
-      <View style={[styles.container, { borderBottomColor: colors.border }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
         <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { borderBottomColor: colors.border }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, borderBottomColor: colors.border }]}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -198,7 +198,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
   },
   username: {
     fontSize: 11,

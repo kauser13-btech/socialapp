@@ -242,7 +242,7 @@ export default function PreferenceCard({ preference, onUpdate }) {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.inner_card}>
+        <View style={[styles.inner_card, { backgroundColor: isDark ? colors.cardBackground : '#f9f9fb', borderColor: isDark ? colors.border : '#00000014' }]}>
           {/* ── Hero Card (image or gradient) ── */}
           <TouchableOpacity onPress={handlePress} activeOpacity={0.92} style={styles.heroWrapper}>
             {heroImage ? (
@@ -290,7 +290,7 @@ export default function PreferenceCard({ preference, onUpdate }) {
             <Text style={[styles.contentTitle, { color: colors.textPrimary }]}>{preference.title}</Text>
 
             {preference.description ? (
-              <Text style={[styles.contentDescription, { color: "#4c4c4c" }]} numberOfLines={3}>
+              <Text style={[styles.contentDescription, { color: colors.textSecondary }]} numberOfLines={3}>
                 "{preference.description}"
               </Text>
             ) : null}
@@ -520,9 +520,7 @@ const styles = StyleSheet.create({
   inner_card: {
     borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: "#f9f9fb",
     borderWidth: 1,
-    borderColor: '#00000014',
   },
 
   /* Also Love Container */
