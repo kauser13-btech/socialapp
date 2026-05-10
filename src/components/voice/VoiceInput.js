@@ -89,11 +89,6 @@ export default function VoiceInput({ onProcessed, colors }) {
     const ok = await requestPermission();
     if (!ok) { setError('Microphone permission required.'); return; }
     try {
-      const available = await Voice.isAvailable();
-      if (!available) {
-        setError('Speech recognition is not available on this device.');
-        return;
-      }
       setState('listening');
       startPulse();
       await Voice.start('en-US');

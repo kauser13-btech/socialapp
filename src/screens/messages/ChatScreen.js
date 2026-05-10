@@ -351,6 +351,38 @@ export default function ChatScreen({ route, navigation }) {
     );
   };
 
+  const renderStoryCard = (story, isMe) => {
+    const expired = !story || !story.image_url;
+    const accentColor = isMe ? 'rgba(255,255,255,0.2)' : `${colors.primary}20`;
+    const cardBg = isMe ? colors.primary : (isDark ? colors.cardBackground : '#f3f4f6');
+    const labelColor = isMe ? 'rgba(255,255,255,0.75)' : colors.textSecondary;
+    const titleColor = isMe ? '#fff' : colors.textPrimary;
+    return (
+      <View style={[storyCardStyles.card, { backgroundColor: cardBg }]}>
+        <View style={[storyCardStyles.header, { borderBottomColor: accentColor }]}>
+          <Icon name="images-outline" size={13} color={isMe ? '#fff' : colors.primary} />
+          <Text style={[storyCardStyles.label, { color: isMe ? 'rgba(255,255,255,0.85)' : colors.primary }]}>
+            Replied to a story
+          </Text>
+        </View>
+        {expired ? (
+          <Text style={[storyCardStyles.expired, { color: labelColor }]}>Story no longer available</Text>
+        ) : (
+          <Image
+            source={{ uri: story.image_url }}
+            style={storyCardStyles.thumb}
+            resizeMode="cover"
+          />
+        )}
+        {!!story?.caption && (
+          <Text style={[storyCardStyles.caption, { color: titleColor }]} numberOfLines={2}>
+            {story.caption}
+          </Text>
+        )}
+      </View>
+    );
+  };
+
   const renderMessageBubble = (item, isMe, isLastInGroup) => {
     if (item.message_type === 'image' && item.image_path) {
       return renderImageBubble(item, isMe);
@@ -360,6 +392,15 @@ export default function ChatScreen({ route, navigation }) {
       return (
         <View>
           {renderSharedPreference(item.shared_preference, isMe)}
+          {item.content ? renderTextBubble(item.content, isMe, [{ marginTop: 4 }]) : null}
+        </View>
+      );
+    }
+
+    if (item.story) {
+      return (
+        <View>
+          {renderStoryCard(item.story, isMe)}
           {item.content ? renderTextBubble(item.content, isMe, [{ marginTop: 4 }]) : null}
         </View>
       );
@@ -854,6 +895,46 @@ const chatShareStyles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     marginTop: 4,
+  },
+});
+
+const storyCardStyles = StyleSheet.create({
+  card: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    maxWidth: 240,
+    minWidth: 180,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  thumb: {
+    width: '100%',
+    height: 140,
+  },
+  expired: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  caption: {
+    fontSize: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    lineHeight: 17,
   },
 });
 

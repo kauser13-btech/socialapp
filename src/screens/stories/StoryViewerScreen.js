@@ -377,7 +377,7 @@ const pc = StyleSheet.create({
 });
 
 // ── Reply bar ─────────────────────────────────────────────────────────────────
-function ReplyBar({ authorName, authorId, onPause, onResume }) {
+function ReplyBar({ authorName, authorId, storyId, author, navigation, onPause, onResume }) {
   const [text, setText]         = useState('');
   const [sending, setSending]   = useState('');
   const [reaction, setReaction] = useState(null);
@@ -386,10 +386,13 @@ function ReplyBar({ authorName, authorId, onPause, onResume }) {
     if (!text.trim()) return;
     setSending('sending');
     try {
-      await messagesAPI.sendMessage({ receiver_id: authorId, content: text.trim() });
+      await messagesAPI.sendStoryReply(authorId, storyId, text.trim());
       setText('');
       setSending('sent');
-      setTimeout(() => setSending(''), 2000);
+      setTimeout(() => {
+        setSending('');
+        navigation.navigate('Chat', { userId: authorId, user: author });
+      }, 800);
     } catch {
       setSending('');
     }
@@ -398,7 +401,7 @@ function ReplyBar({ authorName, authorId, onPause, onResume }) {
   const sendReaction = async (emoji) => {
     setReaction(emoji);
     try {
-      await messagesAPI.sendMessage({ receiver_id: authorId, content: emoji });
+      await messagesAPI.sendStoryReply(authorId, storyId, emoji);
     } catch { /* silent */ }
     setTimeout(() => setReaction(null), 1500);
   };
@@ -670,6 +673,9 @@ export default function StoryViewerScreen({ route, navigation }) {
               <ReplyBar
                 authorName={authorName}
                 authorId={author?.id}
+                storyId={currentStory?.id}
+                author={author}
+                navigation={navigation}
                 onPause={() => setPaused(true)}
                 onResume={() => setPaused(false)}
               />

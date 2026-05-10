@@ -44,44 +44,66 @@ function formatAddedDate(dateStr) {
   return `Added ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
 }
 
-const DUMMY_FRIENDS = [
-  { id: 1, initials: 'S', color: '#f97316' },
-  { id: 2, initials: 'A', color: '#10b981' },
-  { id: 3, initials: 'J', color: '#8b5cf6' },
-  { id: 4, initials: 'E', color: '#ef4444' },
-  { id: 5, initials: 'L', color: '#0ea5e9' },
-];
-const DUMMY_TOTAL = 24;
+const AVATAR_COLORS = ['#f97316', '#10b981', '#8b5cf6', '#ef4444', '#0ea5e9', '#f59e0b', '#ec4899', '#6366f1'];
 
-function FriendsWhoLoveThis({ cardBackground, textPrimary, textSecondary }) {
-  const preview = DUMMY_FRIENDS;
-  const extra = DUMMY_TOTAL - preview.length;
+function FriendsWhoLoveThis({ preferenceId, cardBackground, textPrimary, textSecondary }) {
+  const [friends, setFriends] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!preferenceId) { setLoading(false); return; }
+    preferencesAPI.getFriendsWhoLove(preferenceId)
+      .then(res => {
+        console.log('getFriendsWhoLove response:', JSON.stringify(res));
+        if (res.success) {
+          setFriends(res.data.friends || []);
+          setTotal(res.data.total || 0);
+        }
+      })
+      .catch(err => console.warn('getFriendsWhoLove error:', err))
+      .finally(() => setLoading(false));
+  }, [preferenceId]);
+
+  if (loading) return null;
+  if (total === 0) return null;
+
+  const preview = friends.slice(0, 5);
+  const extra = total > preview.length ? total - preview.length : 0;
+
   return (
     <View style={fStyles.section}>
       <Text style={[fStyles.label, { color: textSecondary }]}>
-        {DUMMY_TOTAL} friends also love this
+        {total} {total === 1 ? 'friend' : 'friends'} also love this
       </Text>
       <View style={fStyles.row}>
-        {preview.map((f, idx) => (
-          <View
-            key={f.id}
-            style={[
-              fStyles.avatar,
-              { backgroundColor: f.color, left: idx * 26, zIndex: preview.length - idx, borderColor: cardBackground },
-            ]}
-          >
-            <Text style={fStyles.avatarText}>{f.initials}</Text>
-          </View>
-        ))}
-        <View
-          style={[
-            { left: preview.length * 30, zIndex: 0, borderColor: cardBackground },
-          ]}
-        >
-          <Text style={[fStyles.extraText, { color: textSecondary }]}>+{extra} more</Text>
-        </View>
-        {/* spacer so row has measurable width */}
-        <View style={{ width: preview.length * 26 + 58 }} />
+        {preview.map((f, idx) => {
+          const initials = (f.name || f.username || '?').charAt(0).toUpperCase();
+          const color = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+          return (
+            <View
+              key={f.id}
+              style={[
+                fStyles.avatar,
+                { left: idx * 26, zIndex: preview.length - idx, borderColor: cardBackground },
+              ]}
+            >
+              {f.avatar ? (
+                <Image source={{ uri: fixImageUrl(f.avatar) }} style={fStyles.avatarImg} />
+              ) : (
+                <View style={[fStyles.avatarFallback, { backgroundColor: color }]}>
+                  <Text style={fStyles.avatarText}>{initials}</Text>
+                </View>
+              )}
+            </View>
+          );
+        })}
+        {extra > 0 && (
+          <Text style={[fStyles.extraText, { color: textSecondary, left: preview.length * 26 + 6 }]}>
+            +{extra} more
+          </Text>
+        )}
+        <View style={{ width: preview.length * 26 + (extra > 0 ? 58 : 0) }} />
       </View>
     </View>
   );
@@ -97,12 +119,17 @@ const fStyles = StyleSheet.create({
     height: 34,
     borderRadius: 17,
     borderWidth: 2,
+    overflow: 'hidden',
+  },
+  avatarImg: { width: '100%', height: '100%' },
+  avatarFallback: {
+    width: '100%',
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  extraBubble: { backgroundColor: '#e5e7eb' },
-  extraText: { fontSize: 14, fontWeight: '600' },
+  extraText: { position: 'absolute', fontSize: 14, fontWeight: '600' },
 });
 
 const DUMMY_SIMILAR = [
@@ -416,6 +443,7 @@ export default function PreferenceDetailScreen({ route }) {
             paddingVertical: 16,
           }}>
             <FriendsWhoLoveThis
+              preferenceId={id}
               cardBackground={colors.cardBackground}
               textPrimary={colors.textPrimary}
               textSecondary={colors.textSecondary} />

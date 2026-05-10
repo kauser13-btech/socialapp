@@ -302,6 +302,8 @@ export const messagesAPI = {
   getConversations: () => api.get('/messages/conversations'),
   getMessages: (userId) => api.get(`/messages/${userId}`),
   sendMessage: (data) => api.post('/messages', data),
+  sendStoryReply: (receiverId, storyId, content) =>
+    api.post('/messages', { receiver_id: receiverId, story_id: storyId, content }),
   sharePreference: (receiverId, preferenceId, content) =>
     api.post('/messages', { receiver_id: receiverId, shared_preference_id: preferenceId, content: content || null }),
   sendImageMessage: async (receiverId, fileUri, mimeType = 'image/jpeg') => {

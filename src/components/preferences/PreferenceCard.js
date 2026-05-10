@@ -330,20 +330,33 @@ export default function PreferenceCard({ preference, onUpdate }) {
           </TouchableOpacity>
         </View>
 
-        {/* ToDo: Also Love */}
-        <View style={styles.alsoLoveContainer}>
-          <View style={styles.alsoLoveList}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>J</Text>
+        {/* Also Love — friends who liked this preference */}
+        {preference.also_love && preference.also_love.length > 0 && (
+          <View style={styles.alsoLoveContainer}>
+            <View style={styles.alsoLoveList}>
+              {preference.also_love.map((person, idx) => (
+                <View key={person.id} style={[styles.avatar, { zIndex: preference.also_love.length - idx }]}>
+                  {person.avatar_url ? (
+                    <ImageWithLoader
+                      id={person.id}
+                      uri={person.avatar_url}
+                      style={styles.avatarImage}
+                    />
+                  ) : (
+                    <Text style={styles.avatarText}>
+                      {(person.name || person.username || '?')[0].toUpperCase()}
+                    </Text>
+                  )}
+                </View>
+              ))}
             </View>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>E</Text>
-
-            </View>
+            <Text style={styles.alsoLoveTitle} numberOfLines={1}>
+              {preference.also_love.length === 1
+                ? `${preference.also_love[0].name} also loves this`
+                : `${preference.also_love[0].name} and ${preference.also_love[1].name} also love this`}
+            </Text>
           </View>
-          <Text style={styles.alsoLoveTitle}>Jordan and Emma also love this</Text>
-
-        </View>
+        )}
 
         {/* ── Actions ── */}
         <View style={styles.actions}>
@@ -557,6 +570,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
     color: "#fff",
+  },
+
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
   },
 
   alsoLoveTitle: {
