@@ -378,7 +378,7 @@ export default function DiscoverScreen({ navigation }) {
       ) : (
         <FlatList
           data={pairs}
-          style={[styles.flatList, { backgroundColor: colors.background }]}
+          style={[styles.flatList, { backgroundColor: "#eeeeff" }]}
           keyExtractor={(_, i) => i.toString()}
           contentContainerStyle={styles.gridContent}
           showsVerticalScrollIndicator={false}
