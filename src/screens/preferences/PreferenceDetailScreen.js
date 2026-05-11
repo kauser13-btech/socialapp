@@ -9,6 +9,8 @@ import { useNavigation } from '@react-navigation/native';
 import { Loading } from '../../components/ui';
 import { preferencesAPI, fixImageUrl } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
+import LinearGradient from 'react-native-linear-gradient';
+
 
 const CATEGORY_META = [
   { keys: ['food', 'dining'], emoji: '🍽️', color: '#f97316', gradient: ['#f97316', '#ea580c'] },
@@ -310,8 +312,21 @@ export default function PreferenceDetailScreen({ route }) {
       >
         {/* ── Hero Section ── */}
         <View style={[styles.heroContainer, { height: heroHeight, backgroundColor: catMeta.gradient[0] }]}>
-          {/* Background gradient fill */}
-          <View style={[styles.heroBgGradient, { backgroundColor: catMeta.gradient[1] }]} />
+
+          {heroImage ? (
+            <Image source={{ uri: heroImage }} style={[{ height: heroHeight }, styles.heroCardImage]} resizeMode="cover" />
+          )
+            : (
+              <View style={[styles.heroCardImage, { height: heroHeight, backgroundColor: catMeta.gradient[0] }]} />
+            )}
+
+
+          <LinearGradient
+            colors={['#0000008f', 'rgba(255, 255, 255, 0.16)']}
+            useAngle={true}
+            angle={0}
+            style={[styles.heroCardImage, { height: heroHeight }]}
+          />
 
           {/* Back button */}
           <TouchableOpacity
@@ -323,29 +338,11 @@ export default function PreferenceDetailScreen({ route }) {
             <Text style={styles.backBtnText}>Back</Text>
           </TouchableOpacity>
 
-          {/* CURRENTLY READING label */}
-          <View style={[styles.currentlyReadingWrap, { top: insets.top + 52 }]}>
-            <Text style={styles.currentlyReadingLabel}>
-              {catMeta.emoji} CURRENTLY {preference.category?.name ? preference.category.name.toUpperCase() : 'READING'}
+          <View style={[styles.heroCardCategoryPill, { backgroundColor: '#ffffffeb' }]}>
+            <Text style={styles.heroCardCategoryEmoji}>{catMeta.emoji}</Text>
+            <Text style={[styles.heroCardCategoryText, { color: catMeta.color }]}>
+              {preference.category?.name || 'General'}
             </Text>
-          </View>
-
-          {/* Card — centered in hero */}
-          <View style={[styles.heroCard, { top: insets.top + 76 }]}>
-            {heroImage ? (
-              <Image source={{ uri: heroImage }} style={styles.heroCardImage} resizeMode="cover" />
-            ) : (
-              <View style={[styles.heroCardImage, { backgroundColor: catMeta.gradient[0] }]} />
-            )}
-            {/* Bottom info strip */}
-            <View style={styles.heroCardInfo}>
-              <View style={[styles.heroCardCategoryPill, { backgroundColor: catMeta.color + '22' }]}>
-                <Text style={styles.heroCardCategoryEmoji}>{catMeta.emoji}</Text>
-                <Text style={[styles.heroCardCategoryText, { color: catMeta.color }]}>
-                  {preference.category?.name || 'General'}
-                </Text>
-              </View>
-            </View>
           </View>
         </View>
 
@@ -491,11 +488,11 @@ export default function PreferenceDetailScreen({ route }) {
 
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }
 
-const HERO_HEIGHT = 260;
+const HERO_HEIGHT = 200;
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
@@ -506,11 +503,7 @@ const styles = StyleSheet.create({
     height: HERO_HEIGHT,
     position: 'relative',
     overflow: 'hidden',
-  },
-  heroBgGradient: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
-    opacity: 0.55,
+    display: 'flex',
   },
 
   backBtn: {
@@ -519,7 +512,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.30)',
+    backgroundColor: 'rgba(0,0,0,0.50)',
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -545,28 +538,20 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
 
-  /* Floating card inside hero */
-  heroCard: {
-    position: 'absolute',
-    left: 40,
-    right: 40,
-    borderRadius: 18,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 12,
-  },
+
   heroCardImage: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
     width: '100%',
-    height: 140,
   },
+
   heroCardInfo: {
     backgroundColor: 'rgba(0,0,0,0.55)',
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
+
   heroCardCategoryPill: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
@@ -575,7 +560,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+
+    position: "absolute",
+    bottom: 12,
+    left: 12,
+
   },
   heroCardCategoryEmoji: { fontSize: 13 },
   heroCardCategoryText: { fontSize: 12, fontWeight: '700' },
