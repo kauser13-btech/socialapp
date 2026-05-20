@@ -1,15 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Switch, Alert, ActivityIndicator, Image,
+  Switch, Alert, ActivityIndicator, Image, Modal, FlatList,
+  TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
-import { Loading } from '../../components/ui';
-import { preferencesAPI, fixImageUrl } from '../../lib/api';
+import { Loading, Avatar } from '../../components/ui';
+import { preferencesAPI, messagesAPI, searchAPI, fixImageUrl } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import LinearGradient from 'react-native-linear-gradient';
+
+const SHARE_DEBOUNCE_MS = 350;
 
 
 const CATEGORY_META = [
@@ -201,6 +205,7 @@ export default function PreferenceDetailScreen({ route }) {
   const { id } = route.params || {};
   const navigation = useNavigation();
   const { colors, isDark } = useTheme();
+  const { user: currentUser } = useAuth();
   const insets = useSafeAreaInsets();
 
   const [preference, setPreference] = useState(null);
@@ -209,6 +214,14 @@ export default function PreferenceDetailScreen({ route }) {
 
   const [isFavorite, setIsFavorite] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+
+  const [shareVisible, setShareVisible] = useState(false);
+  const [shareQuery, setShareQuery] = useState('');
+  const [shareResults, setShareResults] = useState([]);
+  const [shareSearching, setShareSearching] = useState(false);
+  const [shareSending, setShareSending] = useState(false);
+  const [successModal, setSuccessModal] = useState({ visible: false, recipientName: '' });
+  const debounceRef = useRef(null);
 
   useEffect(() => {
     if (!id) { setError('Invalid preference ID'); setLoading(false); return; }
@@ -245,13 +258,41 @@ export default function PreferenceDetailScreen({ route }) {
     }
   };
 
-  const handleShareToFeed = async () => {
+  const openShare = () => setShareVisible(true);
+  const closeShare = () => {
+    setShareVisible(false);
+    setShareQuery('');
+    setShareResults([]);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+  };
+
+  const handleShareSearch = (text) => {
+    setShareQuery(text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (!text.trim()) { setShareResults([]); return; }
+    setShareSearching(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await searchAPI.searchUsers(text.trim());
+        if (res.success) setShareResults(res.data?.users || res.data || []);
+      } catch (err) {
+        console.error('Share search error:', err);
+      } finally {
+        setShareSearching(false);
+      }
+    }, SHARE_DEBOUNCE_MS);
+  };
+
+  const handleSendShare = async (recipient) => {
+    setShareSending(true);
     try {
-      await preferencesAPI.shareToFeed(id);
-      Alert.alert('Shared!', 'Your preference has been shared to your feed.');
-    } catch (err) {
-      console.warn('shareToFeed error:', err);
-      Alert.alert('Error', 'Failed to share to feed. Please try again.');
+      await messagesAPI.sharePreference(recipient.id, id, null);
+      closeShare();
+      setSuccessModal({ visible: true, recipientName: recipient.first_name || recipient.username });
+    } catch {
+      Alert.alert('Error', 'Failed to share preference. Please try again.');
+    } finally {
+      setShareSending(false);
     }
   };
 
@@ -298,6 +339,8 @@ export default function PreferenceDetailScreen({ route }) {
       </SafeAreaView>
     );
   }
+
+  const isOwner = currentUser && preference.user_id === currentUser.id;
 
   const catMeta = getCategoryMeta(preference.category?.name);
   const heroImage = preference.images?.[0]?.url || null;
@@ -451,29 +494,33 @@ export default function PreferenceDetailScreen({ route }) {
 
             {/* Action buttons */}
             <View style={[styles.actionRow, { backgroundColor: isDark ? colors.cardBackground : '#fff' }]}>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnOutline, { backgroundColor: isDark ? colors.background : '#ededed', borderColor: colors.border }]}
-                onPress={handleEditNote}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.actionBtnText, { color: colors.textPrimary }]}>Edit Note</Text>
-              </TouchableOpacity>
+              {isOwner && (
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.actionBtnOutline, { backgroundColor: isDark ? colors.background : '#ededed', borderColor: colors.border }]}
+                  onPress={handleEditNote}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.actionBtnText, { color: colors.textPrimary }]}>Edit Note</Text>
+                </TouchableOpacity>
+              )}
 
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionBtnPrimary, { backgroundColor: colors.primary }]}
-                onPress={handleShareToFeed}
+                onPress={openShare}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.actionBtnText, { color: '#fff' }]}>Share to Feed</Text>
+                <Text style={[styles.actionBtnText, { color: '#fff' }]}>Share</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnOutline, { backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#fff0f0', borderColor: isDark ? 'rgba(239,68,68,0.3)' : '#ffe1e1' }]}
-                onPress={handleRemove}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.actionBtnText, { color: '#ef4444' }]}>Remove</Text>
-              </TouchableOpacity>
+              {isOwner && (
+                <TouchableOpacity
+                  style={[styles.actionBtn, styles.actionBtnOutline, { backgroundColor: isDark ? 'rgba(239,68,68,0.15)' : '#fff0f0', borderColor: isDark ? 'rgba(239,68,68,0.3)' : '#ffe1e1' }]}
+                  onPress={handleRemove}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.actionBtnText, { color: '#ef4444' }]}>Remove</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Similar items */}
@@ -488,7 +535,104 @@ export default function PreferenceDetailScreen({ route }) {
 
         </View>
       </ScrollView>
-    </SafeAreaView >
+      {/* Share bottom sheet */}
+      <Modal visible={shareVisible} animationType="slide" transparent onRequestClose={closeShare}>
+        <KeyboardAvoidingView style={shareStyles.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={[shareStyles.sheet, { backgroundColor: colors.background }]}>
+            <View style={shareStyles.handle} />
+            <View style={shareStyles.sheetHeader}>
+              <Text style={[shareStyles.sheetTitle, { color: colors.textPrimary }]}>Share Preference</Text>
+              <TouchableOpacity onPress={closeShare} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Icon name="close" size={22} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <View style={[shareStyles.previewChip, { backgroundColor: colors.primary + '15', borderColor: colors.primary + '40' }]}>
+              <Icon name="bookmark" size={14} color={colors.primary} />
+              <Text style={[shareStyles.previewTitle, { color: colors.primary }]} numberOfLines={1}>{preference.title}</Text>
+            </View>
+            <View style={[shareStyles.searchBar, { backgroundColor: isDark ? colors.cardBackground : '#f3f4f6' }]}>
+              <Icon name="search" size={16} color={colors.textSecondary} />
+              <TextInput
+                style={[shareStyles.searchInput, { color: colors.textPrimary }]}
+                placeholder="Search people..."
+                placeholderTextColor={colors.textSecondary}
+                value={shareQuery}
+                onChangeText={handleShareSearch}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {shareSearching && <ActivityIndicator size="small" color={colors.primary} />}
+            </View>
+            <FlatList
+              data={shareResults}
+              keyExtractor={item => item.id.toString()}
+              style={shareStyles.resultsList}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => {
+                const name = item.first_name && item.last_name
+                  ? `${item.first_name} ${item.last_name}`
+                  : item.username;
+                return (
+                  <TouchableOpacity
+                    style={[shareStyles.resultRow, { borderBottomColor: colors.border }]}
+                    onPress={() => handleSendShare(item)}
+                    disabled={shareSending}
+                    activeOpacity={0.7}
+                  >
+                    <Avatar user={item} size="medium" />
+                    <View style={shareStyles.resultText}>
+                      <Text style={[shareStyles.resultName, { color: colors.textPrimary }]}>{name}</Text>
+                      <Text style={[shareStyles.resultUsername, { color: colors.textSecondary }]}>@{item.username}</Text>
+                    </View>
+                    {shareSending
+                      ? <ActivityIndicator size="small" color={colors.primary} />
+                      : <Icon name="send" size={18} color={colors.primary} />}
+                  </TouchableOpacity>
+                );
+              }}
+              ListEmptyComponent={
+                <Text style={[shareStyles.emptyText, { color: colors.textSecondary }]}>
+                  {shareQuery.length > 0 && !shareSearching ? 'No users found' : 'Type a name to search'}
+                </Text>
+              }
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Share success modal */}
+      <Modal
+        visible={successModal.visible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setSuccessModal({ visible: false, recipientName: '' })}
+      >
+        <View style={successStyles.overlay}>
+          <View style={[successStyles.card, { backgroundColor: colors.cardBackground }]}>
+            <View style={[successStyles.iconCircle, { backgroundColor: colors.primary + '18' }]}>
+              <Icon name="checkmark-circle" size={52} color={colors.primary} />
+            </View>
+            <Text style={[successStyles.title, { color: colors.textPrimary }]}>Shared!</Text>
+            <Text style={[successStyles.body, { color: colors.textSecondary }]}>
+              <Text style={{ fontWeight: '700', color: colors.textPrimary }}>
+                "{preference?.title}"
+              </Text>
+              {' '}was sent to{' '}
+              <Text style={{ fontWeight: '700', color: colors.textPrimary }}>
+                {successModal.recipientName}
+              </Text>
+            </Text>
+            <TouchableOpacity
+              style={[successStyles.btn, { backgroundColor: colors.primary }]}
+              onPress={() => setSuccessModal({ visible: false, recipientName: '' })}
+              activeOpacity={0.85}
+            >
+              <Text style={successStyles.btnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
@@ -705,5 +849,124 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     lineHeight: 20,
+  },
+});
+
+const shareStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#d1d5db',
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  sheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  sheetTitle: { fontSize: 18, fontWeight: '700', letterSpacing: -0.3 },
+  previewChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  previewTitle: { flex: 1, fontSize: 14, fontWeight: '600' },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  searchInput: { flex: 1, fontSize: 15, paddingVertical: 0 },
+  resultsList: { maxHeight: 320 },
+  resultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 12,
+  },
+  resultText: { flex: 1 },
+  resultName: { fontSize: 15, fontWeight: '600' },
+  resultUsername: { fontSize: 13, marginTop: 1 },
+  emptyText: { textAlign: 'center', padding: 24, fontSize: 14 },
+});
+
+const successStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  card: {
+    width: '100%',
+    borderRadius: 24,
+    padding: 28,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginBottom: 10,
+  },
+  body: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  btn: {
+    width: '100%',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  btnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

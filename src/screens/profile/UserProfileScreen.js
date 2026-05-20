@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, Alert,
-  TouchableOpacity, Image,
+  TouchableOpacity,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Avatar, Loading } from '../../components/ui';
-import { userAPI, friendsAPI, analyticsAPI } from '../../lib/api';
+import PreferenceCard from '../../components/preferences/PreferenceCard';
+import { userAPI, friendsAPI, analyticsAPI, feedAPI } from '../../lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { spacing, fontSize, fontWeight } from '../../constants/styles';
@@ -14,8 +15,6 @@ import { spacing, fontSize, fontWeight } from '../../constants/styles';
 const AVATAR_SIZE = 96;
 const AVATAR_RING = 4;
 const HEADER_H = 120;
-const CARD_W = 160;
-const CARD_H = 200;
 
 // ─── Category rules ───────────────────────────────────────────────────────────
 const CATEGORY_RULES = [
@@ -34,27 +33,10 @@ const CATEGORY_RULES = [
   { keys: ['photo', 'photography'], icon: 'camera', color: '#0891b2' },
 ];
 
-const CATEGORY_GRADIENTS = [
-  { keys: ['food', 'dining'], colors: ['#f97316', '#ea580c'] },
-  { keys: ['film', 'movie'], colors: ['#8b5cf6', '#6d28d9'] },
-  { keys: ['travel', 'trip'], colors: ['#0ea5e9', '#0284c7'] },
-  { keys: ['music'], colors: ['#10b981', '#059669'] },
-  { keys: ['game'], colors: ['#f59e0b', '#d97706'] },
-  { keys: ['book', 'read'], colors: ['#6366f1', '#4f46e5'] },
-  { keys: ['sport', 'fitness'], colors: ['#ec4899', '#db2777'] },
-  { keys: ['tech', 'gadget'], colors: ['#64748b', '#475569'] },
-];
-
 function getCategoryMeta(name = '') {
   const lower = name.toLowerCase();
   const match = CATEGORY_RULES.find(r => r.keys.some(k => lower.includes(k)));
   return match ? { icon: match.icon, color: match.color } : { icon: 'folder-open', color: '#6B63F5' };
-}
-
-function getCardGradient(name = '') {
-  const lower = name.toLowerCase();
-  const match = CATEGORY_GRADIENTS.find(r => r.keys.some(k => lower.includes(k)));
-  return match ? match.colors : ['#6B63F5', '#4f46e5'];
 }
 
 // ─── Gradient cover ───────────────────────────────────────────────────────────
@@ -88,47 +70,15 @@ function GradientBg({ height }) {
   );
 }
 
-// ─── Favorite card ────────────────────────────────────────────────────────────
-function FavoriteCard({ item, onPress }) {
-  const catName = item.category?.name || '';
-  const meta = getCategoryMeta(catName);
-  const [c1, c2] = getCardGradient(catName);
-  const heroImage = item.images?.[0]?.url;
-  const subtitle = [item.subtitle, item.year].filter(Boolean).join(' · ');
-
-  return (
-    <TouchableOpacity style={favStyles.card} onPress={onPress} activeOpacity={0.88}>
-      {heroImage ? (
-        <Image source={{ uri: heroImage }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-      ) : (
-        <>
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: c1 }]} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: c2, opacity: 0.55, borderRadius: 16 }]} />
-        </>
-      )}
-      <View style={favStyles.overlay} />
-      <View style={favStyles.badge}>
-        <Icon name={meta.icon} size={14} color="#fff" />
-      </View>
-      <View style={favStyles.heart}>
-        <Icon name="heart" size={16} color="#fff" />
-      </View>
-      <View style={favStyles.bottom}>
-        <Text style={favStyles.title} numberOfLines={2}>{item.title || ''}</Text>
-        {!!subtitle && <Text style={favStyles.sub} numberOfLines={1}>{subtitle}</Text>}
-      </View>
-    </TouchableOpacity>
-  );
-}
 
 // ─── Taste DNA bar ────────────────────────────────────────────────────────────
-function TasteDNABar({ name, count, maxCount, colors }) {
+function TasteDNABar({ name, count, maxCount, colors, onPress }) {
   const safeName = typeof name === 'string' ? name : String(name ?? '');
   const safeCount = Number(count) || 0;
   const pct = maxCount > 0 ? safeCount / maxCount : 0;
   const meta = getCategoryMeta(safeName);
   return (
-    <TouchableOpacity style={dnaStyles.row} activeOpacity={0.7}>
+    <TouchableOpacity style={dnaStyles.row} activeOpacity={0.7} onPress={onPress}>
       <View style={[dnaStyles.iconWrap, { backgroundColor: meta.color + '18' }]}>
         <Icon name={meta.icon} size={15} color={meta.color} />
       </View>
@@ -223,7 +173,7 @@ export default function UserProfileScreen({ route, navigation }) {
   const [compatibility, setCompatibility] = useState(null);
   const [mutualFriends, setMutualFriends] = useState([]);
   const [tasteDNA, setTasteDNA] = useState([]);
-  const [favorites, setFavorites] = useState([]);
+  const [userPosts, setUserPosts] = useState([]);
   const [allergies, setAllergies] = useState([]);
   const [prefsCount, setPrefsCount] = useState(0);
   const [sharedCount, setSharedCount] = useState(0);
@@ -262,26 +212,33 @@ export default function UserProfileScreen({ route, navigation }) {
           prefs.forEach(p => {
             const cat = p.category_name || p.category?.name || p.category || 'Other';
             const catStr = typeof cat === 'string' ? cat : 'Other';
-            map[catStr] = (map[catStr] || 0) + 1;
+            const slug = p.category?.slug || null;
+            if (!map[catStr]) map[catStr] = { count: 0, slug };
+            map[catStr].count += 1;
           });
           setTasteDNA(
             Object.entries(map)
-              .map(([name, count]) => ({ name, count }))
+              .map(([name, { count, slug }]) => ({ name, count, slug }))
               .sort((a, b) => b.count - a.count)
               .slice(0, 6),
           );
-
-          const favs = prefs
-            .filter(p => p.is_favorite || (p.reactions_count > 0))
-            .sort((a, b) => (b.reactions_count || 0) - (a.reactions_count || 0))
-            .slice(0, 8);
-          setFavorites(favs.length > 0 ? favs : prefs.slice(0, 8));
 
           const liked = prefs.filter(p => p.reactions_count > 0).reduce((s, p) => s + (p.reactions_count || 0), 0);
           setLikedCount(liked);
 
           const shared = prefs.filter(p => p.shared_count > 0).reduce((s, p) => s + (p.shared_count || 0), 0);
           setSharedCount(shared);
+        })
+        .catch(() => { });
+
+      // Load posts for "My Posts" section
+      const loadPosts = me?.username === username
+        ? feedAPI.getMyFeed()
+        : userAPI.getUserPreferences(username);
+      loadPosts
+        .then(r => {
+          const items = r?.data?.feed || r?.data?.preferences || r?.data || [];
+          setUserPosts(Array.isArray(items) ? items.slice(0, 20) : []);
         })
         .catch(() => { });
     } catch (err) {
@@ -507,40 +464,41 @@ export default function UserProfileScreen({ route, navigation }) {
                   <Text style={[styles.dnaSectionTitle, { color: colors.textPrimary }]}>Taste DNA</Text>
                 </View>
                 {tasteDNA.map(item => (
-                  <TasteDNABar key={item.name} name={item.name} count={item.count} maxCount={maxCount} colors={colors} />
+                  <TasteDNABar
+                    key={item.name}
+                    name={item.name}
+                    count={item.count}
+                    maxCount={maxCount}
+                    colors={colors}
+                    onPress={() => navigation.navigate('Category', { slug: item.slug || item.name.toLowerCase(), categoryName: item.name })}
+                  />
                 ))}
               </View>
             </>
           )}
 
-          {/* ── Favorites ── */}
-          {favorites.length > 0 && (
+          {/* ── Posts feed ── */}
+          {userPosts.length > 0 && (
             <>
               <View style={[styles.divider, { backgroundColor: colors.gray100 }]} />
-              <View style={styles.favSection}>
+              <View style={styles.postsSection}>
                 <View style={styles.favHeader}>
                   <View style={styles.favHeaderLeft}>
-                    <View style={styles.favHeartBadge}>
-                      <Icon name="heart" size={13} color="#ef4444" />
+                    <View style={[styles.favHeartBadge, { backgroundColor: colors.gray100 }]}>
+                      <Icon name="grid-outline" size={13} color={colors.textPrimary} />
                     </View>
-                    <Text style={[styles.favTitle, { color: '#ef4444' }]}>
-                      {isOwnProfile ? 'My Favorites' : `${firstName()}'s Favorites`}
+                    <Text style={[styles.favTitle, { color: colors.textPrimary }]}>
+                      {isOwnProfile ? 'My Posts' : `${firstName()}'s Posts`}
                     </Text>
                   </View>
-                  <TouchableOpacity style={styles.favUpdated} activeOpacity={0.7} onPress={() => navigation.navigate('UserProfile', { username })}>
-                    <Text style={[styles.favUpdatedText, { color: colors.textSecondary }]}>See all</Text>
-                    <Icon name="chevron-forward" size={13} color={colors.textSecondary} />
-                  </TouchableOpacity>
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.favScroll}>
-                  {favorites.map(item => (
-                    <FavoriteCard
-                      key={item.id}
-                      item={item}
-                      onPress={() => navigation.navigate('PreferenceDetail', { id: item.id })}
-                    />
-                  ))}
-                </ScrollView>
+                {userPosts.map(item => (
+                  <PreferenceCard
+                    key={item.id}
+                    preference={item}
+                    onPress={() => navigation.navigate('PreferenceDetail', { id: item.id })}
+                  />
+                ))}
               </View>
             </>
           )}
@@ -642,8 +600,8 @@ const styles = StyleSheet.create({
   dnaSectionTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
   sectionTitle: { fontSize: 11, fontWeight: fontWeight.bold, letterSpacing: 1, marginBottom: 2 },
 
-  // Favorites
-  favSection: { gap: spacing.md },
+  // Posts section
+  postsSection: { gap: spacing.md },
   favHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   favHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   favHeartBadge: {
@@ -651,9 +609,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0F0', alignItems: 'center', justifyContent: 'center',
   },
   favTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold },
-  favUpdated: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  favUpdatedText: { fontSize: fontSize.sm },
-  favScroll: { paddingVertical: 4, gap: 12 },
 
   // Logout
   logoutBtn: {
@@ -677,33 +632,6 @@ const statStyles = StyleSheet.create({
   sep: { width: 2, height: 28, marginHorizontal: 4 },
 });
 
-// ─── Favorite card styles ─────────────────────────────────────────────────────
-const favStyles = StyleSheet.create({
-  card: {
-    width: CARD_W, height: CARD_H,
-    borderRadius: 16, overflow: 'hidden',
-    backgroundColor: '#6B63F5',
-  },
-  overlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.22)',
-  },
-  badge: {
-    position: 'absolute', top: 10, left: 10,
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  heart: {
-    position: 'absolute', top: 10, right: 10,
-    width: 30, height: 30, borderRadius: 15,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  bottom: { position: 'absolute', bottom: 12, left: 12, right: 12 },
-  title: { color: '#fff', fontSize: 15, fontWeight: '700', lineHeight: 20 },
-  sub: { color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 },
-});
 
 // ─── Sub-component styles ─────────────────────────────────────────────────────
 const chipStyles = StyleSheet.create({

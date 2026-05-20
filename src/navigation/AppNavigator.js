@@ -75,7 +75,6 @@ function TabNavigator() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const bottomInset = insets.bottom;
-
   return (
     <Tab.Navigator
       screenOptions={{
@@ -191,7 +190,7 @@ function MainStack() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings', ...headerStyle }} />
       <Stack.Screen name="EditProfile" component={EditProfileScreen} options={{ title: 'Edit Profile', ...headerStyle }} />
-      <Stack.Screen name="Category" component={CategoryScreen} options={{ title: 'Category', ...headerStyle }} />
+      <Stack.Screen name="Category" component={CategoryScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Chat" component={ChatScreen} options={{ title: 'Chat', ...headerStyle }} />
       <Stack.Screen name="Messages" component={MessagesScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Map" component={MapScreen} options={{ headerShown: false }} />

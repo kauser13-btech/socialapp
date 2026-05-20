@@ -9,6 +9,7 @@ import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { storiesAPI, preferencesAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useSocket } from '../../contexts/SocketContext';
 
 const { width: W } = Dimensions.get('window');
 const PREVIEW_W = W - 32;
@@ -206,6 +207,7 @@ const chip = StyleSheet.create({
 export default function CreateStoryScreen({ navigation, route }) {
   const { onCreated } = route.params || {};
   const { colors, isDark } = useTheme();
+  const { publishStory } = useSocket();
 
   const [prefs, setPrefs]             = useState([]);
   const [prefsLoading, setPrefsLoading] = useState(true);
@@ -286,6 +288,7 @@ export default function CreateStoryScreen({ navigation, route }) {
         const story    = res.data.story;
         const newGroup = { user: story.user, is_own: true, all_viewed: false, stories: [story] };
         onCreated?.(newGroup);
+        publishStory(newGroup);
         navigation.goBack();
       }
     } catch (e) {

@@ -13,7 +13,7 @@ import { storiesAPI, messagesAPI, preferencesAPI, fixImageUrl, fixVideoUrl } fro
 const { width: W, height: H } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 60;
 
-const FALLBACK_COLORS = ['#f97316', '#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ec4899'];
+const FALLBACK_COLORS = ['#6B63F5', '#6366f1', '#a855f7', '#10b981', '#f59e0b', '#ec4899'];
 const REACTIONS       = ['❤️', '🔥', '😍'];
 
 const CAT_GRADIENTS = [
@@ -42,10 +42,10 @@ const CAT_ICONS = [
 ];
 
 function catGradient(name) {
-  if (!name) return ['#f97316', '#b45309'];
+  if (!name) return ['#6B63F5', '#4f46e5'];
   const l = name.toLowerCase();
   const m = CAT_GRADIENTS.find(g => g.keys.some(k => l.includes(k)));
-  return m ? [m.top, m.bot] : ['#f97316', '#b45309'];
+  return m ? [m.top, m.bot] : ['#6B63F5', '#4f46e5'];
 }
 function catEmoji(name) {
   if (!name) return '📁';

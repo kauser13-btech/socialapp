@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator,
 } from 'react-native';
@@ -6,6 +6,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { storiesAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useSocket } from '../../contexts/SocketContext';
 
 const CIRCLE_SIZE = 64;
 
@@ -68,6 +69,7 @@ function AddStoryButton({ onPress, colors }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function StoriesRow({ navigation }) {
   const { colors } = useTheme();
+  const { onStoryPublished } = useSocket();
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -81,6 +83,29 @@ export default function StoriesRow({ navigation }) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []));
+
+  // Realtime: prepend or merge a story group published by any user via socket.
+  useEffect(() => {
+    const mergeGroup = (prev, newGroup) => {
+      const existingIndex = prev.findIndex(g => g.user.id === newGroup.user.id);
+      if (existingIndex !== -1) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          all_viewed: false,
+          stories: [...newGroup.stories, ...updated[existingIndex].stories],
+        };
+        return updated;
+      }
+      const ownIndex = prev.findIndex(g => g.is_own);
+      const insertAt = ownIndex === -1 ? 0 : ownIndex + 1;
+      const next = [...prev];
+      next.splice(insertAt, 0, newGroup);
+      return next;
+    };
+
+    return onStoryPublished(newGroup => setGroups(prev => mergeGroup(prev, newGroup)));
+  }, [onStoryPublished]);
 
   const ownGroup = groups.find(g => g.is_own);
   const otherGroups = groups.filter(g => !g.is_own);

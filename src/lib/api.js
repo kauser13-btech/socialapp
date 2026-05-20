@@ -229,7 +229,7 @@ export const preferencesAPI = {
 export const feedAPI = {
   getFeed: (page = 1) => api.get(`/feed?page=${page}`),
   getMyFeed: () => api.get('/feed/my'),
-  getFollowingFeed: () => api.get('/feed/following'),
+  getFollowingFeed: (page = 1) => api.get(`/feed/following?page=${page}`),
   getTrending: () => api.get('/feed/trending'),
   getNearby:   (lat, lng, radius = 20) => api.get(`/feed/nearby?latitude=${lat}&longitude=${lng}&radius=${radius}`),
   getTopRated: (minRating = 4, category = null) => {

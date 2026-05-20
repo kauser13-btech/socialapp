@@ -31,7 +31,7 @@ export default function LoginScreen({ navigation }) {
     try {
       await login({ email, password });
     } catch (error) {
-      if (error.errors) {
+      if (error.errors && Object.keys(error.errors).length > 0) {
         setErrors(error.errors);
       } else {
         Alert.alert('Login Failed', error.message || 'Please check your credentials and try again.');

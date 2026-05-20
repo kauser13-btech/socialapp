@@ -14,6 +14,7 @@ export function SocketProvider({ children }) {
   const [onlineUsers, setOnlineUsers] = useState(new Set());
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
   const socketRef = useRef(null);
+  const storyListenersRef = useRef(new Set());
 
   // Play notification sound/vibration
   const playNotificationSound = useCallback(() => {
@@ -97,6 +98,11 @@ export function SocketProvider({ children }) {
         setUnreadMessageCount(prev => prev + 1);
       });
 
+      // Broadcast new story to all listeners (StoriesRow, etc.)
+      newSocket.on('story:published', (group) => {
+        storyListenersRef.current.forEach(cb => cb(group));
+      });
+
       socketRef.current = newSocket;
       setSocket(newSocket);
     };
@@ -141,6 +147,17 @@ export function SocketProvider({ children }) {
     return () => socketRef.current?.off('message:read', callback);
   }, []);
 
+  const publishStory = useCallback((group) => {
+    if (socketRef.current && isConnected) {
+      socketRef.current.emit('story:published', group);
+    }
+  }, [isConnected]);
+
+  const onStoryPublished = useCallback((callback) => {
+    storyListenersRef.current.add(callback);
+    return () => storyListenersRef.current.delete(callback);
+  }, []);
+
   const value = useMemo(() => ({
     socket,
     isConnected,
@@ -152,8 +169,10 @@ export function SocketProvider({ children }) {
     stopTyping,
     markAsRead,
     onMessageRead,
+    publishStory,
+    onStoryPublished,
     playNotificationSound,
-  }), [socket, isConnected, onlineUsers, unreadMessageCount, resetUnreadMessageCount, sendMessage, startTyping, stopTyping, markAsRead, onMessageRead, playNotificationSound]);
+  }), [socket, isConnected, onlineUsers, unreadMessageCount, resetUnreadMessageCount, sendMessage, startTyping, stopTyping, markAsRead, onMessageRead, publishStory, onStoryPublished, playNotificationSound]);
 
   return (
     <SocketContext.Provider value={value}>

@@ -10,6 +10,7 @@ import PreferenceCard from '../../components/preferences/PreferenceCard';
 import StoriesRow from '../../components/stories/StoriesRow';
 import { feedAPI, notificationsAPI, friendsAPI } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useSocket } from '../../contexts/SocketContext';
 
 
 // ─── Birthday Strip ────────────────────────────────────────────────────────────
@@ -104,6 +105,7 @@ const bdayStyles = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function FeedScreen({ navigation }) {
   const { colors, isDark } = useTheme();
+  const { unreadMessageCount, resetUnreadMessageCount } = useSocket();
 
   const [preferences, setPreferences] = useState([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -126,11 +128,15 @@ export default function FeedScreen({ navigation }) {
 
   const loadFeed = async (page = 1) => {
     try {
-      const res = await feedAPI.getFeed(page);
+      const res = await feedAPI.getFollowingFeed(page);
       if (res.success) {
         const items = res.data?.preferences || [];
         const pagination = res.data?.pagination || {};
-        setPreferences(prev => page === 1 ? items : [...prev, ...items]);
+        setPreferences(prev => {
+          if (page === 1) return items;
+          const existingIds = new Set(prev.map(p => p.id));
+          return [...prev, ...items.filter(p => !existingIds.has(p.id))];
+        });
         setCurrentPage(pagination.current_page || page);
         setTotalPages(pagination.total_pages || 1);
       }
@@ -182,10 +188,15 @@ export default function FeedScreen({ navigation }) {
 
           <TouchableOpacity
             style={styles.notifBtn}
-            onPress={() => navigation.navigate('Messages')}
+            onPress={() => { resetUnreadMessageCount(); navigation.navigate('Messages'); }}
             activeOpacity={0.7}
           >
             <Icon name="chatbubble-outline" size={24} color={colors.textPrimary} />
+            {unreadMessageCount > 0 && (
+              <View style={[styles.badge, { backgroundColor: colors.primary }]}>
+                <Text style={styles.badgeText}>{unreadMessageCount > 99 ? '99+' : unreadMessageCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -224,16 +235,16 @@ export default function FeedScreen({ navigation }) {
             <View style={[styles.emptyIconWrap, { backgroundColor: colors.primary + '15' }]}>
               <Icon name="layers-outline" size={40} color={colors.primary} />
             </View>
-            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>Nothing here yet</Text>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No activity yet</Text>
             <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-              Create your first preference or follow friends to fill your feed!
+              Add friends or follow people to see their preferences here.
             </Text>
             <TouchableOpacity
               style={[styles.emptyBtn, { backgroundColor: colors.primary }]}
-              onPress={() => navigation.navigate('PreferenceCreate')}
+              onPress={() => navigation.navigate('DiscoverTab')}
               activeOpacity={0.8}
             >
-              <Text style={styles.emptyBtnText}>Create Preference</Text>
+              <Text style={styles.emptyBtnText}>Find Friends</Text>
             </TouchableOpacity>
           </View>
         }

@@ -283,38 +283,113 @@ export default function ChatScreen({ route, navigation }) {
     );
   };
 
+  const CHAT_CATEGORY_GRADIENTS = [
+    { keys: ['food', 'dining'], colors: ['#f97316', '#ea580c'] },
+    { keys: ['movie', 'film'], colors: ['#8b5cf6', '#6d28d9'] },
+    { keys: ['travel', 'trip'], colors: ['#0ea5e9', '#0284c7'] },
+    { keys: ['music'], colors: ['#10b981', '#059669'] },
+    { keys: ['game'], colors: ['#f59e0b', '#d97706'] },
+    { keys: ['book', 'read'], colors: ['#6366f1', '#4f46e5'] },
+    { keys: ['sport', 'fitness'], colors: ['#ec4899', '#db2777'] },
+    { keys: ['tech', 'gadget'], colors: ['#64748b', '#475569'] },
+  ];
+
+  const getChatGradient = (name) => {
+    if (!name) return ['#6B63F5', '#4f46e5'];
+    const lower = name.toLowerCase();
+    const match = CHAT_CATEGORY_GRADIENTS.find(({ keys }) => keys.some(k => lower.includes(k)));
+    return match ? match.colors : ['#6B63F5', '#4f46e5'];
+  };
+
+  const getChatCategoryEmoji = (name) => {
+    if (!name) return '📁';
+    const lower = name.toLowerCase();
+    if (lower.includes('book') || lower.includes('read')) return '📚';
+    if (lower.includes('food') || lower.includes('dining')) return '🍽️';
+    if (lower.includes('movie') || lower.includes('film')) return '🎬';
+    if (lower.includes('travel') || lower.includes('trip')) return '✈️';
+    if (lower.includes('music')) return '🎵';
+    if (lower.includes('game')) return '🎮';
+    if (lower.includes('sport') || lower.includes('fitness')) return '💪';
+    if (lower.includes('tech') || lower.includes('gadget')) return '💻';
+    return '📁';
+  };
+
   const renderSharedPreference = (pref, isMe) => {
-    const accentColor = isMe ? 'rgba(255,255,255,0.25)' : `${colors.primary}20`;
-    const titleColor  = isMe ? '#fff' : colors.textPrimary;
-    const subColor    = isMe ? 'rgba(255,255,255,0.75)' : colors.textSecondary;
-    const cardBg = isMe ? colors.primary : (isDark ? colors.cardBackground : '#f3f4f6');
+    const gradientColors = getChatGradient(pref.category?.name);
+    const categoryEmoji = getChatCategoryEmoji(pref.category?.name);
+    const heroImage = pref.images && pref.images.length > 0 ? pref.images[0] : null;
+
+    const renderStarsPref = (rating) => {
+      if (!rating) return null;
+      const stars = [];
+      for (let i = 1; i <= 5; i++) {
+        stars.push(
+          <Icon key={i} name={i <= rating ? 'star' : 'star-outline'} size={12} color="#f59e0b" />
+        );
+      }
+      return stars;
+    };
+
+    const alsoLove = pref.also_love || [];
+
     return (
       <TouchableOpacity
-        style={[chatShareStyles.card, { backgroundColor: cardBg }]}
+        style={[chatShareStyles.card, { backgroundColor: isDark ? colors.cardBackground : '#ffffff' }]}
         onPress={() => navigation.navigate('PreferenceDetail', { id: pref.id })}
-        activeOpacity={0.85}
+        activeOpacity={0.9}
       >
-        <View style={[chatShareStyles.header, { borderBottomColor: accentColor }]}>
-          <Icon name="bookmark" size={13} color={isMe ? '#fff' : colors.primary} />
-          <Text style={[chatShareStyles.shared, { color: isMe ? 'rgba(255,255,255,0.8)' : colors.primary }]}>
-            Shared a preference
-          </Text>
-        </View>
-        <Text style={[chatShareStyles.title, { color: titleColor }]} numberOfLines={2}>{pref.title}</Text>
-        {pref.category?.name && (
-          <Text style={[chatShareStyles.category, { color: subColor }]}>
-            {pref.category.name}
-          </Text>
-        )}
-        {pref.location && (
-          <View style={chatShareStyles.locationRow}>
-            <Icon name="location-outline" size={11} color={subColor} />
-            <Text style={[chatShareStyles.locationText, { color: subColor }]} numberOfLines={1}>
-              {pref.location}
-            </Text>
+        {/* Hero area */}
+        <View style={chatShareStyles.heroWrapper}>
+          {heroImage ? (
+            <Image source={{ uri: heroImage.url }} style={chatShareStyles.heroImage} resizeMode="cover" />
+          ) : (
+            <View style={[chatShareStyles.heroGradient, { backgroundColor: gradientColors[0] }]} />
+          )}
+          <View style={chatShareStyles.heroOverlay} />
+
+          {/* Category badge */}
+          {pref.category?.name && (
+            <View style={chatShareStyles.heroCategoryBadge}>
+              <Text style={chatShareStyles.heroCategoryEmoji}>{categoryEmoji}</Text>
+              <Text style={chatShareStyles.heroCategoryText}>{pref.category.name}</Text>
+            </View>
+          )}
+
+          {/* Title overlaid at bottom */}
+          <View style={chatShareStyles.heroBottom}>
+            <Text style={chatShareStyles.heroTitle} numberOfLines={2}>{pref.title}</Text>
+            {pref.location ? (
+              <Text style={chatShareStyles.heroSubtitle} numberOfLines={1}>{pref.location}</Text>
+            ) : null}
           </View>
-        )}
-        <Text style={[chatShareStyles.tap, { color: subColor }]}>Tap to view →</Text>
+        </View>
+
+        {/* Info row */}
+        <View style={chatShareStyles.infoRow}>
+          <View style={chatShareStyles.infoLeft}>
+            {pref.user ? (
+              <Text style={[chatShareStyles.authorName, { color: colors.textSecondary }]} numberOfLines={1}>
+                {pref.user.first_name || pref.user.name || pref.user.username}
+              </Text>
+            ) : null}
+            {pref.rating ? (
+              <View style={chatShareStyles.starsRow}>
+                {renderStarsPref(pref.rating)}
+                {alsoLove.length > 0 && (
+                  <Text style={[chatShareStyles.friendsText, { color: colors.textSecondary }]}>
+                    · {alsoLove.length} {alsoLove.length === 1 ? 'friend loves' : 'friends love'} this
+                  </Text>
+                )}
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Add to My List button */}
+        <View style={[chatShareStyles.addBtn, { borderTopColor: isDark ? colors.border : '#e5e7eb' }]}>
+          <Text style={[chatShareStyles.addBtnText, { color: colors.primary }]}>+ Add to My List</Text>
+        </View>
       </TouchableOpacity>
     );
   };
@@ -851,50 +926,106 @@ const styles = StyleSheet.create({
 
 const chatShareStyles = StyleSheet.create({
   card: {
-    borderRadius: 14,
-    padding: 12,
-    maxWidth: 260,
-    minWidth: 200,
+    borderRadius: 16,
+    overflow: 'hidden',
+    width: 260,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  header: {
+  heroWrapper: {
+    height: 160,
+    position: 'relative',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroGradient: {
+    width: '100%',
+    height: '100%',
+  },
+  heroOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  heroCategoryBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingBottom: 8,
-    marginBottom: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
-  shared: {
+  heroCategoryEmoji: {
+    fontSize: 12,
+  },
+  heroCategoryText: {
     fontSize: 11,
     fontWeight: '700',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
+    color: '#F27322',
   },
-  title: {
-    fontSize: 14,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-    marginBottom: 4,
+  heroBottom: {
+    position: 'absolute',
+    bottom: 10,
+    left: 12,
+    right: 12,
   },
-  category: {
-    fontSize: 12,
+  heroTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  heroSubtitle: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 11,
+    marginTop: 2,
     fontWeight: '500',
-    marginBottom: 4,
   },
-  locationRow: {
+  infoRow: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  infoLeft: {
+    flex: 1,
+  },
+  authorName: {
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 3,
+  },
+  starsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    marginBottom: 4,
   },
-  locationText: {
+  friendsText: {
     fontSize: 11,
-    flex: 1,
+    fontWeight: '500',
   },
-  tap: {
-    fontSize: 11,
+  addBtn: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 11,
+    alignItems: 'center',
+  },
+  addBtnText: {
+    fontSize: 14,
     fontWeight: '600',
-    marginTop: 4,
   },
 });
 

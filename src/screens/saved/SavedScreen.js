@@ -8,11 +8,12 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Loading } from '../../components/ui';
-import { preferencesAPI, searchAPI, specialDatesAPI, allergiesAPI } from '../../lib/api';
+import { preferencesAPI, searchAPI, specialDatesAPI, allergiesAPI, fixImageUrl } from '../../lib/api';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -153,7 +154,7 @@ export default function SavedScreen({ navigation }) {
             marginLeft: isLeft ? 0 : 8,
           },
         ]}
-        onPress={() => navigation.navigate('CategoryScreen', { category: item })}
+        onPress={() => navigation.navigate('Category', { slug: item.slug || item.name, categoryName: item.name })}
         activeOpacity={0.82}
       >
         {item.isPrivate && (
@@ -214,7 +215,7 @@ export default function SavedScreen({ navigation }) {
 
             <TouchableOpacity
               style={styles.statItem}
-              onPress={() => navigation.navigate('CategoryScreen')}
+              onPress={() => {}}
               activeOpacity={0.75}
             >
               <Text style={styles.statCount}>{categoriesCount}</Text>
@@ -270,6 +271,43 @@ export default function SavedScreen({ navigation }) {
             />
           )}
         </View>
+
+        {/* ── Favourites ── */}
+        {preferences.some(p => p.is_favorite) && (
+          <View style={styles.favSection}>
+            <Text style={[styles.sectionTitle, { color: isDark ? colors.textPrimary : '#1a1a2e' }]}>
+              My Favourites
+            </Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.favScroll}>
+              {preferences.filter(p => p.is_favorite).map(item => {
+                const cfg = getCategoryConfig(item.category?.name);
+                const heroImage = item.images?.[0]?.url;
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={[styles.favCard, { backgroundColor: cfg.accent }]}
+                    onPress={() => navigation.navigate('PreferenceDetail', { id: item.id })}
+                    activeOpacity={0.85}
+                  >
+                    {heroImage ? (
+                      <Image source={{ uri: fixImageUrl(heroImage) }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    ) : null}
+                    <View style={styles.favOverlay} />
+                    <View style={styles.favHeart}>
+                      <Icon name="heart" size={14} color="#fff" />
+                    </View>
+                    <View style={styles.favBottom}>
+                      <Text style={styles.favTitle} numberOfLines={2}>{item.title}</Text>
+                      {item.category?.name && (
+                        <Text style={styles.favCat} numberOfLines={1}>{item.category.name}</Text>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         {/* ── Profile Details ── */}
         <View style={styles.profileSection}>
@@ -479,6 +517,56 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+
+  // ── Favourites ────────────────────────────────────────────────────────────────
+  favSection: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 8,
+  },
+  favScroll: {
+    gap: 12,
+    paddingVertical: 4,
+  },
+  favCard: {
+    width: 140,
+    height: 180,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  favOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  favHeart: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  favBottom: {
+    position: 'absolute',
+    bottom: 12,
+    left: 12,
+    right: 12,
+  },
+  favTitle: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  favCat: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 11,
+    marginTop: 2,
   },
 
   // ── Profile Details ───────────────────────────────────────────────────────────

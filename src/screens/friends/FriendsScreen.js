@@ -76,7 +76,7 @@ const ring = StyleSheet.create({
   halfRight: { right: 0 },
   sector: { position: 'absolute', top: 0 },
   label: { alignItems: 'center', justifyContent: 'center' },
-  pct: { fontSize: 16, fontWeight: '800', lineHeight: 15 },
+  pct: { fontSize: 11, fontWeight: '800', lineHeight: 13 },
   matchText: { fontSize: 7, fontWeight: '700', color: '#9ca3af', letterSpacing: 0.5 },
 });
 
@@ -165,8 +165,8 @@ function FriendRow({ item, isOnline, onPress, colors, isDark }) {
           {isOnline && <View style={row.onlineDot} />}
         </View>
         <View style={row.tags}>
-          {interests.map(label => (
-            <Tag key={label} label={label} isDark={isDark} />
+          {interests.map((label, i) => (
+            <Tag key={`${label}-${i}`} label={label} isDark={isDark} />
           ))}
         </View>
       </View>
@@ -201,7 +201,15 @@ export default function FriendsScreen({ navigation }) {
   const load = async () => {
     try {
       const [fRes, rRes] = await Promise.all([friendsAPI.list(), friendsAPI.requests()]);
-      if (fRes.success) setFriends(fRes.data.friends || []);
+      if (fRes.success) {
+        const seen = new Set();
+        const unique = (fRes.data.friends || []).filter(f => {
+          if (seen.has(f.id)) return false;
+          seen.add(f.id);
+          return true;
+        });
+        setFriends(unique);
+      }
       if (rRes.success) setRequests(rRes.data.requests || []);
     } catch { /* silent */ }
     finally { setLoading(false); setRefreshing(false); }
@@ -262,7 +270,7 @@ export default function FriendsScreen({ navigation }) {
           <View style={styles.reqAvatars}>
             {reqNames.map((name, i) => (
               <View
-                key={name}
+                key={`${name}-${i}`}
                 style={[styles.reqAvatar, {
                   backgroundColor: getAvatarColor(name),
                   marginLeft: i > 0 ? -12 : 0,
